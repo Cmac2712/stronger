@@ -63,6 +63,7 @@ export function SessionExerciseCard({
           step={WEIGHT_STEP}
           min={0}
           unit="kg"
+          decimal
           onChange={setWeight}
         />
       </View>
