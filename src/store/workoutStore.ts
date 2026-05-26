@@ -5,7 +5,6 @@ import {
   SCHEMA_VERSION,
   Session,
   SessionExercise,
-  Set,
 } from "../types";
 import { genId } from "../util/id";
 import { saveState } from "../persistence/persistence";
@@ -160,7 +159,7 @@ export function createWorkoutStore(persist: Persist = defaultPersist) {
             .filter((se) => se.exerciseId === exerciseId)
             .flatMap((se) => se.sets);
           if (sets.length === 0) continue;
-          const latest = sets.reduce((best: Set, s: Set) =>
+          const latest = sets.reduce((best, s) =>
             s.setNumber > best.setNumber ? s : best
           );
           return { reps: latest.reps, weight: latest.weight };
