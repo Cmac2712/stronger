@@ -277,6 +277,64 @@ describe("workoutStore", () => {
     });
   });
 
+  describe("getSessionsList", () => {
+    it("returns an empty list when there is no history", () => {
+      const store = freshStore();
+      expect(store.getState().getSessionsList()).toEqual([]);
+    });
+
+    it("returns ended sessions newest-first with exercise count and duration", () => {
+      const older: Session = {
+        id: "old",
+        startedAt: 1000,
+        endedAt: 1000 + 60_000,
+        sessionExercises: [
+          { id: "se-a", exerciseId: "bench-press", order: 0, sets: [] },
+        ],
+      };
+      const newer: Session = {
+        id: "new",
+        startedAt: 5000,
+        endedAt: 5000 + 120_000,
+        sessionExercises: [
+          { id: "se-b", exerciseId: "squat", order: 0, sets: [] },
+          { id: "se-c", exerciseId: "deadlift", order: 1, sets: [] },
+        ],
+      };
+      // Hydrate newest-last (the append-efficiency convention) to prove the
+      // selector sorts by startedAt rather than trusting array order.
+      const store = hydrated([older, newer]);
+
+      const list = store.getState().getSessionsList();
+      expect(list.map((s) => s.id)).toEqual(["new", "old"]);
+      expect(list[0]).toEqual({
+        id: "new",
+        startedAt: 5000,
+        endedAt: 125_000,
+        exerciseCount: 2,
+        durationMs: 120_000,
+      });
+      expect(list[1]).toEqual({
+        id: "old",
+        startedAt: 1000,
+        endedAt: 61_000,
+        exerciseCount: 1,
+        durationMs: 60_000,
+      });
+    });
+
+    it("excludes the active (in-progress) session", () => {
+      const store = hydrated([
+        session(1000, "bench-press", [{ setNumber: 1, reps: 5, weight: 100 }]),
+      ]);
+      store.getState().startSession();
+
+      const list = store.getState().getSessionsList();
+      expect(list).toHaveLength(1);
+      expect(list[0].id).toBe("s-1000");
+    });
+  });
+
   describe("persistence seam", () => {
     it("persists a snapshot on every mutation", () => {
       const saved: unknown[] = [];

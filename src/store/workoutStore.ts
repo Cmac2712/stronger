@@ -11,6 +11,14 @@ import { saveState } from "../persistence/persistence";
 
 type Persist = (state: PersistedState) => void;
 
+export type SessionSummary = {
+  id: string;
+  startedAt: number;
+  endedAt: number | null;
+  exerciseCount: number;
+  durationMs: number;
+};
+
 export type WorkoutState = PersistedState;
 
 export type WorkoutActions = {
@@ -20,6 +28,7 @@ export type WorkoutActions = {
   removeExerciseFromSession: (sessionExerciseId: string) => void;
   logSet: (sessionExerciseId: string, reps: number, weight: number) => void;
   getLastSetFor: (exerciseId: string) => { reps: number; weight: number } | null;
+  getSessionsList: () => SessionSummary[];
   hydrate: (state: PersistedState) => void;
 };
 
@@ -166,6 +175,20 @@ export function createWorkoutStore(persist: Persist = defaultPersist) {
         }
         return null;
       },
+
+      getSessionsList: () =>
+        // History holds only ended sessions (the active session lives in
+        // activeSession), so mapping it naturally excludes the in-progress one.
+        // Sort by startedAt rather than trusting array order.
+        [...get().history]
+          .sort((a, b) => b.startedAt - a.startedAt)
+          .map((s) => ({
+            id: s.id,
+            startedAt: s.startedAt,
+            endedAt: s.endedAt,
+            exerciseCount: s.sessionExercises.length,
+            durationMs: (s.endedAt ?? s.startedAt) - s.startedAt,
+          })),
 
       hydrate: (state) => {
         set({ ...get(), ...state });

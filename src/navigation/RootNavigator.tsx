@@ -3,15 +3,21 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { WorkoutScreen } from "../screens/WorkoutScreen";
 import { ExercisePickerScreen } from "../screens/ExercisePickerScreen";
 import { HistoryScreen } from "../screens/HistoryScreen";
+import { SessionDetailScreen } from "../screens/SessionDetailScreen";
 
 export type WorkoutStackParamList = {
   WorkoutHome: undefined;
   ExercisePicker: undefined;
 };
 
+export type HistoryStackParamList = {
+  HistoryHome: undefined;
+  SessionDetail: { sessionId: string };
+};
+
 const Tab = createBottomTabNavigator();
 const WorkoutStack = createNativeStackNavigator<WorkoutStackParamList>();
-const HistoryStack = createNativeStackNavigator();
+const HistoryStack = createNativeStackNavigator<HistoryStackParamList>();
 
 function WorkoutStackScreen() {
   return (
@@ -30,6 +36,7 @@ function HistoryStackScreen() {
   return (
     <HistoryStack.Navigator>
       <HistoryStack.Screen name="HistoryHome" component={HistoryScreen} options={{ title: "History" }} />
+      <HistoryStack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: "Session" }} />
     </HistoryStack.Navigator>
   );
 }
