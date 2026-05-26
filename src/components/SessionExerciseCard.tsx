@@ -6,6 +6,10 @@ import { Stepper } from "./Stepper";
 
 type Props = {
   sessionExercise: SessionExercise;
+  // Most recent set for this exercise (from getLastSetFor), or null if never
+  // performed. Seeds the next-set steppers so confirming an unchanged set is
+  // one tap.
+  prefill: { reps: number; weight: number } | null;
   onLogSet: (reps: number, weight: number) => void;
   onRemove: () => void;
 };
@@ -13,9 +17,14 @@ type Props = {
 const REP_STEP = 1;
 const WEIGHT_STEP = 2.5;
 
-export function SessionExerciseCard({ sessionExercise, onLogSet, onRemove }: Props) {
-  const [reps, setReps] = useState(8);
-  const [weight, setWeight] = useState(20);
+export function SessionExerciseCard({
+  sessionExercise,
+  prefill,
+  onLogSet,
+  onRemove,
+}: Props) {
+  const [reps, setReps] = useState(prefill?.reps ?? 0);
+  const [weight, setWeight] = useState(prefill?.weight ?? 0);
 
   const name =
     getById(sessionExercise.exerciseId)?.name ?? sessionExercise.exerciseId;
@@ -47,7 +56,7 @@ export function SessionExerciseCard({ sessionExercise, onLogSet, onRemove }: Pro
       )}
 
       <View className="flex-row justify-around items-end mb-3">
-        <Stepper label="Reps" value={reps} step={REP_STEP} min={1} onChange={setReps} />
+        <Stepper label="Reps" value={reps} step={REP_STEP} min={0} onChange={setReps} />
         <Stepper
           label="Weight"
           value={weight}

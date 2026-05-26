@@ -5,6 +5,7 @@ import {
   SCHEMA_VERSION,
   Session,
   SessionExercise,
+  Set,
 } from "../types";
 import { genId } from "../util/id";
 import { saveState } from "../persistence/persistence";
@@ -19,6 +20,7 @@ export type WorkoutActions = {
   addExerciseToSession: (exerciseId: string) => void;
   removeExerciseFromSession: (sessionExerciseId: string) => void;
   logSet: (sessionExerciseId: string, reps: number, weight: number) => void;
+  getLastSetFor: (exerciseId: string) => { reps: number; weight: number } | null;
   hydrate: (state: PersistedState) => void;
 };
 
@@ -141,6 +143,29 @@ export function createWorkoutStore(persist: Persist = defaultPersist) {
           ...get(),
           activeSession: { ...active, sessionExercises },
         });
+      },
+
+      getLastSetFor: (exerciseId) => {
+        const state = get();
+        const sessions = state.activeSession
+          ? [...state.history, state.activeSession]
+          : state.history;
+        // Most recent session first; the active session and history are both
+        // ordered by startedAt rather than array position.
+        const byRecency = [...sessions].sort(
+          (a, b) => b.startedAt - a.startedAt
+        );
+        for (const session of byRecency) {
+          const sets = session.sessionExercises
+            .filter((se) => se.exerciseId === exerciseId)
+            .flatMap((se) => se.sets);
+          if (sets.length === 0) continue;
+          const latest = sets.reduce((best: Set, s: Set) =>
+            s.setNumber > best.setNumber ? s : best
+          );
+          return { reps: latest.reps, weight: latest.weight };
+        }
+        return null;
       },
 
       hydrate: (state) => {
