@@ -91,6 +91,14 @@ function mapSessionSets(
   }));
 }
 
+// Every session including the in-progress one — for reads that span
+// "everything ever performed" rather than just ended history.
+function allSessions(state: WorkoutState): Session[] {
+  return state.activeSession
+    ? [...state.history, state.activeSession]
+    : state.history;
+}
+
 function snapshot(state: WorkoutState): PersistedState {
   return {
     schemaVersion: state.schemaVersion,
@@ -221,13 +229,9 @@ export function createWorkoutStore(persist: Persist = defaultPersist) {
       },
 
       getLastSetFor: (exerciseId) => {
-        const state = get();
-        const sessions = state.activeSession
-          ? [...state.history, state.activeSession]
-          : state.history;
         // Most recent session first; the active session and history are both
         // ordered by startedAt rather than array position.
-        const byRecency = [...sessions].sort(
+        const byRecency = [...allSessions(get())].sort(
           (a, b) => b.startedAt - a.startedAt
         );
         for (const session of byRecency) {
@@ -258,17 +262,10 @@ export function createWorkoutStore(persist: Persist = defaultPersist) {
           })),
 
       getHistoryFor: (exerciseId) => {
-        const state = get();
-        // Like getLastSetFor, this spans every session including the active
-        // one — "all sets ever performed for this exercise" (PRD).
-        const allSessions = state.activeSession
-          ? [...state.history, state.activeSession]
-          : state.history;
-
-        // Sessions that actually have ≥1 set for this exercise, with the
-        // exercise's sets gathered (a session may add an exercise but log
-        // nothing — those are excluded).
-        const matched = allSessions
+        // Spans every session including the active one — "all sets ever
+        // performed for this exercise" (PRD). Keep only sessions with ≥1 set
+        // for this exercise (a session may add an exercise but log nothing).
+        const matched = allSessions(get())
           .map((session) => ({
             id: session.id,
             startedAt: session.startedAt,
