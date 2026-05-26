@@ -5,6 +5,7 @@ import {
   SCHEMA_VERSION,
   Session,
   SessionExercise,
+  Set,
 } from "../types";
 import { genId } from "../util/id";
 import { saveState } from "../persistence/persistence";
@@ -50,6 +51,20 @@ function mapSessions(state: WorkoutState, fn: (s: Session) => Session): WorkoutS
     activeSession: state.activeSession ? fn(state.activeSession) : null,
     history: state.history.map(fn),
   };
+}
+
+// Apply fn to the set list of every exercise across all sessions.
+function mapSessionSets(
+  state: WorkoutState,
+  fn: (sets: Set[]) => Set[]
+): WorkoutState {
+  return mapSessions(state, (session) => ({
+    ...session,
+    sessionExercises: session.sessionExercises.map((se) => ({
+      ...se,
+      sets: fn(se.sets),
+    })),
+  }));
 }
 
 function snapshot(state: WorkoutState): PersistedState {
@@ -167,15 +182,9 @@ export function createWorkoutStore(persist: Persist = defaultPersist) {
 
       updateSet: (setId, patch) => {
         commit(
-          mapSessions(get(), (session) => ({
-            ...session,
-            sessionExercises: session.sessionExercises.map((se) => ({
-              ...se,
-              sets: se.sets.map((s) =>
-                s.id === setId ? { ...s, ...patch } : s
-              ),
-            })),
-          }))
+          mapSessionSets(get(), (sets) =>
+            sets.map((s) => (s.id === setId ? { ...s, ...patch } : s))
+          )
         );
       },
 
@@ -183,13 +192,7 @@ export function createWorkoutStore(persist: Persist = defaultPersist) {
         // Siblings keep their setNumber: setNumber is a logged value, not a
         // derived index, so removal never renumbers the remaining sets.
         commit(
-          mapSessions(get(), (session) => ({
-            ...session,
-            sessionExercises: session.sessionExercises.map((se) => ({
-              ...se,
-              sets: se.sets.filter((s) => s.id !== setId),
-            })),
-          }))
+          mapSessionSets(get(), (sets) => sets.filter((s) => s.id !== setId))
         );
       },
 
