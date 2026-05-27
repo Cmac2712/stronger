@@ -6,6 +6,8 @@
     "start": "expo start",
     "start:local": "adb reverse tcp:8081 tcp:8081; REACT_NATIVE_PACKAGER_HOSTNAME=127.0.0.1 expo start",
     "android": "expo start --android",
+    "build:android": "npx eas-cli build --platform android --profile preview",
+    "build:android:run": "npx eas-cli build:run -p android --latest",
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "sandcastle": "npx tsx .sandcastle/main.mts"

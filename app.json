@@ -9,9 +9,16 @@
     "android": {
       "package": "com.workout.app"
     },
-    "plugins": ["expo-status-bar"],
+    "plugins": [
+      "expo-status-bar"
+    ],
     "web": {
       "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "60e63661-6f77-48fe-beb5-52566597a5d3"
+      }
     }
   }
 }
