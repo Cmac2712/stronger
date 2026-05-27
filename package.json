@@ -4,6 +4,7 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
+    "start:local": "adb reverse tcp:8081 tcp:8081; REACT_NATIVE_PACKAGER_HOSTNAME=127.0.0.1 expo start",
     "android": "expo start --android",
     "typecheck": "tsc --noEmit",
     "test": "jest",
