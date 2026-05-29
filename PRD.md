@@ -1,4 +1,4 @@
-# PRD: Personal Workout Tracker (Slice 0)
+# PRD: Stronger — Personal Workout Tracker (Slice 0)
 
 **Triage label:** `ready-for-agent`
 
@@ -12,7 +12,7 @@ I want a private, single-user, friction-free logger that fits the way I actually
 
 ## Solution
 
-A React Native app (Android, distributed via Expo Go) that opens to a single "Start Workout" button. Tapping it begins an explicit session. I add exercises from a curated library (organised by muscle group) and log working sets with two-button steppers — reps ±1, weight ±2.5 kg — pre-filled with the values from the last time I performed that exercise. For unusual jumps I can tap the number itself and type with the keyboard.
+**Stronger** is a React Native app (Android, distributed via Expo Go) that opens to a single "Start Workout" button. Tapping it begins an explicit session. I add exercises from a curated library (organised by muscle group) and log working sets with two-button steppers — reps ±1, weight ±2.5 kg — pre-filled with the values from the last time I performed that exercise. For unusual jumps I can tap the number itself and type with the keyboard.
 
 When I'm done, I tap "End Workout" and the session is timestamped and saved. In the History tab I see a chronological list of past sessions and can drill into any session's detail. Tapping any exercise name (in a session, in history, anywhere) opens that exercise's history: a list of past sets and a small sparkline of top-set weight over the last ~10 sessions — enough visual signal to answer "am I getting stronger?" without a charting library.
 
