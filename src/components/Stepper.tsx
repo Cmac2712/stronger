@@ -61,8 +61,10 @@ export function Stepper({
           placeholderTextColor={colors.muted}
           selectTextOnFocus
           accessibilityLabel={`${label} value, tap to type`}
+          // TextInput text color must be set via the `style` prop; NativeWind's
+          // className doesn't reliably apply `color` to native input text.
           style={{ color: colors.primary }}
-          className="mx-3 text-lg font-semibold text-primary min-w-16 text-center"
+          className="mx-3 text-lg font-semibold min-w-16 text-center"
         />
         {unit ? (
           <Text className="text-lg font-semibold text-primary -ml-2 mr-1">

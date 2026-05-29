@@ -29,9 +29,7 @@ export default function App() {
 
   if (!hydrated) {
     return (
-      <View
-        className="flex-1 bg-page items-center justify-center"
-      >
+      <View className="flex-1 bg-page items-center justify-center">
         <Text className="text-primary">Loading…</Text>
       </View>
     );
