@@ -4,6 +4,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useWorkoutStore, workoutStore } from "../store/workoutStore";
 import { SessionExerciseCard } from "../components/SessionExerciseCard";
 import { RestTimerBar } from "../components/RestTimerBar";
+import { supabase } from "../supabase/supabaseClient";
 import type { WorkoutStackParamList } from "../navigation/RootNavigator";
 import { Button, ButtonText, ButtonGroup, ButtonIcon, ButtonSpinner } from "@/components/ui/button";
 
@@ -68,7 +69,20 @@ export function WorkoutScreen() {
       >
         <Text className="text-on-accent font-bold text-base">End Workout</Text>
       </Pressable>
+
+      <SignOutButton />
     </ScrollView>
+  );
+}
+
+function SignOutButton() {
+  return (
+    <Pressable
+      onPress={() => supabase?.auth.signOut()}
+      className="py-4 items-center mt-3"
+    >
+      <Text className="text-muted font-medium text-sm">Sign Out</Text>
+    </Pressable>
   );
 }
 
@@ -87,6 +101,8 @@ function IdleView() {
       >
         <Text className="text-on-accent font-bold text-xl">Start Workout</Text>
       </Pressable>
+
+      <SignOutButton />
     </View>
   );
 }
