@@ -29,7 +29,7 @@ export function resolveSupabaseConfig(env: SupabaseEnv): SupabaseConfigResult {
   if (!url) missing.push(VAR_NAMES.url);
   if (!anonKey) missing.push(VAR_NAMES.anonKey);
 
-  if (missing.length > 0 || !url || !anonKey) {
+  if (!url || !anonKey) {
     return {
       ok: false,
       missing,

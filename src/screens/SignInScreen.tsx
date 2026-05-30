@@ -20,8 +20,8 @@ export function SignInScreen() {
     if (signInError) {
       setError(signInError.message);
     }
-    // On success the auth gate's onAuthStateChange swaps in the tabs; nothing
-    // to do here. Keep the button disabled state tidy either way.
+    // On success the auth gate's onAuthStateChange routes to the tabs; the
+    // unmount makes setSubmitting a no-op, but keep it for the error path.
     setSubmitting(false);
   };
 

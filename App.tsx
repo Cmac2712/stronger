@@ -18,8 +18,6 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
 
-  // Local persistence is unchanged from Slice 0 — it still drives the store and
-  // the UI. This slice only adds the auth gate around the navigator.
   useEffect(() => {
     let cancelled = false;
     loadState().then((state) => {
@@ -29,15 +27,14 @@ export default function App() {
       }
       setHydrated(true);
     });
-    return (
-      ) => {
+    return () => {
       cancelled = true;
     };
   }, []);
 
   useEffect(() => {
     if (supabase === null) {
-      // Misconfigured: ConfigErrorScreen renders below. Don't block on auth.
+      // ConfigErrorScreen renders below — don't block the UI on auth.
       setAuthReady(true);
       return;
     }
@@ -50,8 +47,7 @@ export default function App() {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next);
     });
-    return (
-      ) => {
+    return () => {
       cancelled = true;
       sub.subscription.unsubscribe();
     };
