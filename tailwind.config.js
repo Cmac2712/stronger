@@ -1,3 +1,5 @@
+const { colors: themeColors, radius } = require('./src/theme');
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: process.env.DARK_MODE ? process.env.DARK_MODE : 'class',
@@ -173,6 +175,11 @@ module.exports = {
           info: 'rgb(var(--color-indicator-info)/<alpha-value>)',
           error: 'rgb(var(--color-indicator-error)/<alpha-value>)',
         },
+        ...themeColors,
+      },
+      borderRadius: {
+        surface: `${radius.surface}px`,
+        control: `${radius.control}px`,
       },
       fontFamily: {
         heading: undefined,
