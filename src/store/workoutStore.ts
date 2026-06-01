@@ -19,6 +19,7 @@ import {
 } from "../util/restTimer";
 
 type Persist = (state: PersistedState) => void;
+type OnRestDurationChange = (durationMs: number) => void;
 
 export type SessionSummary = {
   id: string;
@@ -130,7 +131,15 @@ const defaultPersist: Persist = (state) => {
   });
 };
 
-export function createWorkoutStore(persist: Persist = defaultPersist) {
+const defaultOnRestDurationChange: OnRestDurationChange = (durationMs) => {
+  const syncEngine = require("../sync/syncEngine");
+  void syncEngine.setUserSetting(durationMs).catch(() => {});
+};
+
+export function createWorkoutStore(
+  persist: Persist = defaultPersist,
+  onRestDurationChange: OnRestDurationChange = defaultOnRestDurationChange
+) {
   return createStore<WorkoutStore>((set, get) => {
     // Apply a state update then persist the resulting snapshot.
     const commit = (next: WorkoutState) => {
@@ -319,12 +328,11 @@ export function createWorkoutStore(persist: Persist = defaultPersist) {
       },
 
       setRestDuration: (durationMs) => {
-        // Persist the new default and reflect it in an idle timer so the next
-        // countdown uses it. A running/paused countdown is left untouched.
         commit({ ...get(), restDurationMs: durationMs });
         if (get().restTimer.status === "idle") {
           set({ restTimer: { status: "idle", durationMs } });
         }
+        onRestDurationChange(durationMs);
       },
 
       startRestTimer: (now = Date.now()) => {

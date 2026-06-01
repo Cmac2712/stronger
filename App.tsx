@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text } from "react-native";
+import { View, Text, Pressable, AppState } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -9,49 +9,80 @@ import { RootNavigator } from "./src/navigation/RootNavigator";
 import { SignInScreen } from "./src/screens/SignInScreen";
 import { workoutStore } from "./src/store/workoutStore";
 import { loadState } from "./src/persistence/persistence";
-import { supabase, supabaseConfigError } from "./src/supabase/supabaseClient";
-import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
-import './global.css';
+import { supabaseConfigError } from "./src/supabase/supabaseClient";
+import * as syncEngine from "./src/sync/syncEngine";
+import { onSyncStatusChange } from "./src/sync/syncStatus";
+import { colors } from "./src/theme";
+import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
+import "./global.css";
 
 export default function App() {
   const [hydrated, setHydrated] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [syncPaused, setSyncPaused] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    loadState().then((state) => {
-      if (cancelled) return;
-      if (state !== null) {
-        workoutStore.getState().hydrate(state);
+    Promise.all([loadState(), syncEngine.loadUserSettings()]).then(
+      ([oldState, userSettings]) => {
+        if (cancelled) return;
+        if (oldState !== null) {
+          const merged =
+            userSettings !== null
+              ? { ...oldState, restDurationMs: userSettings.rest_duration_ms }
+              : oldState;
+          workoutStore.getState().hydrate(merged);
+        } else if (userSettings !== null) {
+          workoutStore.getState().hydrate({
+            schemaVersion: 1,
+            activeSession: null,
+            history: [],
+            restDurationMs: userSettings.rest_duration_ms,
+          });
+        }
+        setHydrated(true);
       }
-      setHydrated(true);
-    });
+    );
     return () => {
       cancelled = true;
     };
   }, []);
 
   useEffect(() => {
-    if (supabase === null) {
-      // ConfigErrorScreen renders below — don't block the UI on auth.
-      setAuthReady(true);
-      return;
-    }
     let cancelled = false;
-    supabase.auth.getSession().then(({ data }) => {
+    syncEngine.getSession().then((s) => {
       if (cancelled) return;
-      setSession(data.session);
+      setSession(s);
       setAuthReady(true);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+    const unsub = syncEngine.onAuthStateChanged((_event, next) => {
       setSession(next);
     });
     return () => {
       cancelled = true;
-      sub.subscription.unsubscribe();
+      unsub();
     };
   }, []);
+
+  useEffect(() => {
+    return onSyncStatusChange(setSyncPaused);
+  }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active" && session !== null) {
+        void syncEngine.pull().then((settings) => {
+          if (!settings) return;
+          const store = workoutStore.getState();
+          if (store.restDurationMs !== settings.rest_duration_ms) {
+            workoutStore.setState({ restDurationMs: settings.rest_duration_ms });
+          }
+        });
+      }
+    });
+    return () => sub.remove();
+  }, [session]);
 
   if (supabaseConfigError !== null) {
     return <ConfigErrorScreen message={supabaseConfigError} />;
@@ -72,14 +103,30 @@ export default function App() {
           {session === null ? (
             <SignInScreen />
           ) : (
-            <NavigationContainer>
-              <RootNavigator />
-            </NavigationContainer>
+            <>
+              {syncPaused && <SyncPausedBanner />}
+              <NavigationContainer>
+                <RootNavigator />
+              </NavigationContainer>
+            </>
           )}
           <StatusBar style="light" />
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </GluestackUIProvider>
+  );
+}
+
+function SyncPausedBanner() {
+  return (
+    <Pressable
+      onPress={() => void syncEngine.signOut()}
+      className="bg-danger px-4 py-3 items-center"
+    >
+      <Text style={{ color: colors["on-accent"] }} className="text-sm font-medium">
+        Sync paused — please sign in again
+      </Text>
+    </Pressable>
   );
 }
 
