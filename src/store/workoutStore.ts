@@ -20,11 +20,9 @@ import {
 
 type Persist = (state: PersistedState) => void;
 type OnRestDurationChange = (durationMs: number) => void;
-type OnSessionChange = (session: {
-  id: string;
-  startedAt: number;
-  endedAt: number | null;
-}) => void;
+type OnSessionChange = (
+  session: Pick<Session, "id" | "startedAt" | "endedAt">
+) => void;
 
 export type SessionSummary = {
   id: string;

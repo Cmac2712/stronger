@@ -40,6 +40,22 @@ function buildUserSettingsMutation(
   };
 }
 
+function buildSessionMutation(userId: string, row: SessionRow): Mutation {
+  return {
+    id: genId(),
+    table: "sessions",
+    row: {
+      id: row.id,
+      user_id: userId,
+      started_at: row.started_at,
+      ended_at: row.ended_at,
+      updated_at: row.updated_at,
+      deleted_at: row.deleted_at,
+    },
+    enqueuedAt: new Date().toISOString(),
+  };
+}
+
 async function handleMutation(mutation: Mutation): Promise<void> {
   if (!supabase) {
     throw Object.assign(new Error("Supabase not configured"), { status: 500 });
@@ -75,40 +91,25 @@ export async function setUserSetting(restDurationMs: number): Promise<void> {
   void queue.drain(handleMutation);
 }
 
-export async function upsertSession(session: {
-  id: string;
-  startedAt: number;
-  endedAt: number | null;
-}): Promise<void> {
+export async function upsertSession(
+  session: Pick<Session, "id" | "startedAt" | "endedAt">
+): Promise<void> {
   if (!supabase) return;
 
   const userId = await currentUserId();
   if (!userId) return;
 
-  const now = new Date().toISOString();
   const row: SessionRow = {
     id: session.id,
     user_id: userId,
     started_at: session.startedAt,
     ended_at: session.endedAt,
-    updated_at: now,
+    updated_at: new Date().toISOString(),
     deleted_at: null,
   };
 
   await localMirror.writeSession(row);
-  await queue.enqueue({
-    id: genId(),
-    table: "sessions",
-    row: {
-      id: row.id,
-      user_id: userId,
-      started_at: row.started_at,
-      ended_at: row.ended_at,
-      updated_at: row.updated_at,
-      deleted_at: row.deleted_at,
-    },
-    enqueuedAt: new Date().toISOString(),
-  });
+  await queue.enqueue(buildSessionMutation(userId, row));
   void queue.drain(handleMutation);
 }
 
@@ -131,19 +132,7 @@ export async function tombstoneSession(sessionId: string): Promise<void> {
   };
 
   await localMirror.writeSession(row);
-  await queue.enqueue({
-    id: genId(),
-    table: "sessions",
-    row: {
-      id: row.id,
-      user_id: userId,
-      started_at: row.started_at,
-      ended_at: row.ended_at,
-      updated_at: row.updated_at,
-      deleted_at: row.deleted_at,
-    },
-    enqueuedAt: new Date().toISOString(),
-  });
+  await queue.enqueue(buildSessionMutation(userId, row));
   void queue.drain(handleMutation);
 }
 
@@ -235,19 +224,7 @@ export async function pull(): Promise<{
       const userId = await currentUserId();
       if (userId) {
         for (const row of result.enqueues) {
-          await queue.enqueue({
-            id: genId(),
-            table: "sessions",
-            row: {
-              id: row.id,
-              user_id: userId,
-              started_at: row.started_at,
-              ended_at: row.ended_at,
-              updated_at: row.updated_at,
-              deleted_at: row.deleted_at,
-            },
-            enqueuedAt: new Date().toISOString(),
-          });
+          await queue.enqueue(buildSessionMutation(userId, row));
         }
       }
     }

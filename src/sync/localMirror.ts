@@ -40,10 +40,6 @@ export async function writeSession(row: SessionRow): Promise<void> {
   await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(rows));
 }
 
-export async function writeSessions(newRows: SessionRow[]): Promise<void> {
-  await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(newRows));
-}
-
 export async function loadLastPulledAt(): Promise<string | null> {
   return AsyncStorage.getItem(LAST_PULLED_AT_KEY);
 }
