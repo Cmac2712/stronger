@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { View, Text, TextInput, Pressable } from "react-native";
-import { supabase } from "../supabase/supabaseClient";
+import * as syncEngine from "../sync/syncEngine";
+import { workoutStore } from "../store/workoutStore";
 import { colors } from "../theme";
 
 type Props = {
@@ -14,18 +15,19 @@ export function SignInScreen({ onNavigateSignUp }: Props) {
   const [submitting, setSubmitting] = useState(false);
 
   const onSubmit = async () => {
-    if (supabase === null || submitting) return;
+    if (submitting) return;
     setSubmitting(true);
     setError(null);
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+    const { error: signInError, userSettings } = await syncEngine.signIn(
+      email,
       password,
-    });
+      workoutStore.getState().restDurationMs
+    );
     if (signInError) {
       setError(signInError.message);
+    } else if (userSettings) {
+      workoutStore.setState({ restDurationMs: userSettings.rest_duration_ms });
     }
-    // On success the auth gate's onAuthStateChange routes to the tabs; the
-    // unmount makes setSubmitting a no-op, but keep it for the error path.
     setSubmitting(false);
   };
 

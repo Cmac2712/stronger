@@ -3,8 +3,7 @@ import { StoreApi } from "zustand/vanilla";
 import { PersistedState, SCHEMA_VERSION, Session, Set } from "../types";
 
 function freshStore(): StoreApi<WorkoutStore> {
-  // No-op persist: exercise the store in pure form, no AsyncStorage.
-  return createWorkoutStore(() => {});
+  return createWorkoutStore(() => {}, () => {});
 }
 
 function session(
@@ -651,6 +650,14 @@ describe("workoutStore", () => {
       const store = createWorkoutStore((state) => saved.push(state));
       store.getState().setRestDuration(90_000);
       expect(saved[saved.length - 1].restDurationMs).toBe(90_000);
+    });
+
+    it("setRestDuration calls the onRestDurationChange callback", () => {
+      const synced: number[] = [];
+      const store = createWorkoutStore(() => {}, (ms) => synced.push(ms));
+      store.getState().setRestDuration(90_000);
+      store.getState().setRestDuration(60_000);
+      expect(synced).toEqual([90_000, 60_000]);
     });
   });
 
