@@ -5,7 +5,7 @@ import { createMutationQueue } from "./mutationQueue";
 import * as localMirror from "./localMirror";
 import { setSyncPaused } from "./syncStatus";
 import { genId } from "../util/id";
-import { UserSettingsRow, SessionRow, Mutation } from "./types";
+import { UserSettingsRow, SessionRow, SessionExerciseRow, Mutation } from "./types";
 import type { PersistedState, Session } from "../types";
 import { SCHEMA_VERSION, DEFAULT_REST_DURATION_MS } from "../types";
 
@@ -49,6 +49,26 @@ function buildSessionMutation(userId: string, row: SessionRow): Mutation {
       user_id: userId,
       started_at: row.started_at,
       ended_at: row.ended_at,
+      updated_at: row.updated_at,
+      deleted_at: row.deleted_at,
+    },
+    enqueuedAt: new Date().toISOString(),
+  };
+}
+
+function buildSessionExerciseMutation(
+  userId: string,
+  row: SessionExerciseRow
+): Mutation {
+  return {
+    id: genId(),
+    table: "session_exercises",
+    row: {
+      id: row.id,
+      user_id: userId,
+      session_id: row.session_id,
+      exercise_id: row.exercise_id,
+      order: row.order,
       updated_at: row.updated_at,
       deleted_at: row.deleted_at,
     },
@@ -136,6 +156,57 @@ export async function tombstoneSession(sessionId: string): Promise<void> {
   void queue.drain(handleMutation);
 }
 
+export async function upsertSessionExercise(
+  se: Pick<import("../types").SessionExercise, "id" | "exerciseId" | "order"> & {
+    sessionId: string;
+  }
+): Promise<void> {
+  if (!supabase) return;
+
+  const userId = await currentUserId();
+  if (!userId) return;
+
+  const row: SessionExerciseRow = {
+    id: se.id,
+    user_id: userId,
+    session_id: se.sessionId,
+    exercise_id: se.exerciseId,
+    order: se.order,
+    updated_at: new Date().toISOString(),
+    deleted_at: null,
+  };
+
+  await localMirror.writeSessionExercise(row);
+  await queue.enqueue(buildSessionExerciseMutation(userId, row));
+  void queue.drain(handleMutation);
+}
+
+export async function tombstoneSessionExercise(
+  sessionExerciseId: string
+): Promise<void> {
+  if (!supabase) return;
+
+  const userId = await currentUserId();
+  if (!userId) return;
+
+  const now = new Date().toISOString();
+  const rows = await localMirror.loadRawSessionExercises();
+  const existing = rows.find((r) => r.id === sessionExerciseId);
+  const row: SessionExerciseRow = {
+    id: sessionExerciseId,
+    user_id: userId,
+    session_id: existing?.session_id ?? "",
+    exercise_id: existing?.exercise_id ?? "",
+    order: existing?.order ?? 0,
+    updated_at: now,
+    deleted_at: now,
+  };
+
+  await localMirror.writeSessionExercise(row);
+  await queue.enqueue(buildSessionExerciseMutation(userId, row));
+  void queue.drain(handleMutation);
+}
+
 export async function loadUserSettings(): Promise<UserSettingsRow | null> {
   return localMirror.loadUserSettings();
 }
@@ -143,8 +214,9 @@ export async function loadUserSettings(): Promise<UserSettingsRow | null> {
 export async function pull(): Promise<{
   userSettings: UserSettingsRow | null;
   sessions: SessionRow[];
+  sessionExercises: SessionExerciseRow[];
 }> {
-  if (!supabase) return { userSettings: null, sessions: [] };
+  if (!supabase) return { userSettings: null, sessions: [], sessionExercises: [] };
 
   const lastPulledAt = await localMirror.loadLastPulledAt();
 
@@ -158,9 +230,15 @@ export async function pull(): Promise<{
     sessionsQuery = sessionsQuery.gt("updated_at", lastPulledAt);
   }
 
-  const [settingsResult, sessionsResult] = await Promise.all([
+  let sessionExercisesQuery = supabase.from("session_exercises").select("*");
+  if (lastPulledAt) {
+    sessionExercisesQuery = sessionExercisesQuery.gt("updated_at", lastPulledAt);
+  }
+
+  const [settingsResult, sessionsResult, sessionExercisesResult] = await Promise.all([
     settingsQuery,
     sessionsQuery,
+    sessionExercisesQuery,
   ]);
 
   let maxUpdatedAt = lastPulledAt;
@@ -236,6 +314,43 @@ export async function pull(): Promise<{
     }
   }
 
+  // Reconcile session_exercises
+  if (!sessionExercisesResult.error && sessionExercisesResult.data) {
+    const mappedRemote: SessionExerciseRow[] = sessionExercisesResult.data.map(
+      (r: Record<string, unknown>) => ({
+        id: r.id as string,
+        user_id: r.user_id as string,
+        session_id: r.session_id as string,
+        exercise_id: r.exercise_id as string,
+        order: r.order as number,
+        updated_at: r.updated_at as string,
+        deleted_at: (r.deleted_at as string | null) ?? null,
+      })
+    );
+
+    const localRows = await localMirror.loadRawSessionExercises();
+    const result = reconcile(localRows, mappedRemote);
+
+    for (const row of result.writes) {
+      await localMirror.writeSessionExercise(row);
+    }
+
+    if (result.enqueues.length > 0) {
+      const userId = await currentUserId();
+      if (userId) {
+        for (const row of result.enqueues) {
+          await queue.enqueue(buildSessionExerciseMutation(userId, row));
+        }
+      }
+    }
+
+    for (const r of mappedRemote) {
+      if (!maxUpdatedAt || r.updated_at > maxUpdatedAt) {
+        maxUpdatedAt = r.updated_at;
+      }
+    }
+  }
+
   if (maxUpdatedAt && maxUpdatedAt !== lastPulledAt) {
     await localMirror.saveLastPulledAt(maxUpdatedAt);
   }
@@ -244,19 +359,37 @@ export async function pull(): Promise<{
 
   const userSettings = await localMirror.loadUserSettings();
   const sessions = await localMirror.loadSessions();
-  return { userSettings, sessions };
+  const sessionExercises = await localMirror.loadSessionExercises();
+  return { userSettings, sessions, sessionExercises };
 }
 
 export async function loadState(): Promise<PersistedState> {
   const userSettings = await localMirror.loadUserSettings();
   const sessionRows = await localMirror.loadSessions();
+  const exerciseRows = await localMirror.loadSessionExercises();
 
-  const sessions: Session[] = sessionRows.map((r) => ({
-    id: r.id,
-    startedAt: r.started_at,
-    endedAt: r.ended_at,
-    sessionExercises: [],
-  }));
+  const exercisesBySession = new Map<string, SessionExerciseRow[]>();
+  for (const row of exerciseRows) {
+    const list = exercisesBySession.get(row.session_id) ?? [];
+    list.push(row);
+    exercisesBySession.set(row.session_id, list);
+  }
+
+  const sessions: Session[] = sessionRows.map((r) => {
+    const seRows = exercisesBySession.get(r.id) ?? [];
+    seRows.sort((a, b) => a.order - b.order);
+    return {
+      id: r.id,
+      startedAt: r.started_at,
+      endedAt: r.ended_at,
+      sessionExercises: seRows.map((se) => ({
+        id: se.id,
+        exerciseId: se.exercise_id,
+        order: se.order,
+        sets: [],
+      })),
+    };
+  });
 
   const active = sessions.find((s) => s.endedAt === null) ?? null;
   const history = sessions.filter((s) => s.endedAt !== null);
@@ -277,12 +410,14 @@ export async function signIn(
   error: { message: string } | null;
   userSettings: UserSettingsRow | null;
   sessions: SessionRow[];
+  sessionExercises: SessionExerciseRow[];
 }> {
   if (!supabase) {
     return {
       error: { message: "Supabase not configured" },
       userSettings: null,
       sessions: [],
+      sessionExercises: [],
     };
   }
 
@@ -291,7 +426,7 @@ export async function signIn(
     password,
   });
   if (error)
-    return { error: { message: error.message }, userSettings: null, sessions: [] };
+    return { error: { message: error.message }, userSettings: null, sessions: [], sessionExercises: [] };
 
   const userId = data.user.id;
 
@@ -306,7 +441,7 @@ export async function signIn(
     });
   }
 
-  // Seed sessions from local persistence on first sign-in.
+  // Seed sessions and session exercises from local persistence on first sign-in.
   if (seedState !== undefined) {
     const existingSessions = await localMirror.loadRawSessions();
     if (existingSessions.length === 0 && seedState.sessions.length > 0) {
@@ -320,6 +455,17 @@ export async function signIn(
           updated_at: now,
           deleted_at: null,
         });
+        for (const se of s.sessionExercises) {
+          await localMirror.writeSessionExercise({
+            id: se.id,
+            user_id: userId,
+            session_id: s.id,
+            exercise_id: se.exerciseId,
+            order: se.order,
+            updated_at: now,
+            deleted_at: null,
+          });
+        }
       }
     }
   }
@@ -330,7 +476,12 @@ export async function signIn(
   }
 
   const pulled = await pull();
-  return { error: null, userSettings: pulled.userSettings, sessions: pulled.sessions };
+  return {
+    error: null,
+    userSettings: pulled.userSettings,
+    sessions: pulled.sessions,
+    sessionExercises: pulled.sessionExercises,
+  };
 }
 
 export async function signUp(

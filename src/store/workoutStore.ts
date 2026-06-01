@@ -23,6 +23,13 @@ type OnRestDurationChange = (durationMs: number) => void;
 type OnSessionChange = (
   session: Pick<Session, "id" | "startedAt" | "endedAt">
 ) => void;
+type OnSessionExerciseAdd = (se: {
+  id: string;
+  sessionId: string;
+  exerciseId: string;
+  order: number;
+}) => void;
+type OnSessionExerciseRemove = (sessionExerciseId: string) => void;
 
 export type SessionSummary = {
   id: string;
@@ -144,10 +151,22 @@ const defaultOnSessionChange: OnSessionChange = (session) => {
   void syncEngine.upsertSession(session).catch(() => {});
 };
 
+const defaultOnSessionExerciseAdd: OnSessionExerciseAdd = (se) => {
+  const syncEngine = require("../sync/syncEngine");
+  void syncEngine.upsertSessionExercise(se).catch(() => {});
+};
+
+const defaultOnSessionExerciseRemove: OnSessionExerciseRemove = (id) => {
+  const syncEngine = require("../sync/syncEngine");
+  void syncEngine.tombstoneSessionExercise(id).catch(() => {});
+};
+
 export function createWorkoutStore(
   persist: Persist = defaultPersist,
   onRestDurationChange: OnRestDurationChange = defaultOnRestDurationChange,
-  onSessionChange: OnSessionChange = defaultOnSessionChange
+  onSessionChange: OnSessionChange = defaultOnSessionChange,
+  onSessionExerciseAdd: OnSessionExerciseAdd = defaultOnSessionExerciseAdd,
+  onSessionExerciseRemove: OnSessionExerciseRemove = defaultOnSessionExerciseRemove
 ) {
   return createStore<WorkoutStore>((set, get) => {
     // Apply a state update then persist the resulting snapshot.
@@ -214,6 +233,12 @@ export function createWorkoutStore(
             sessionExercises: [...active.sessionExercises, sessionExercise],
           },
         });
+        onSessionExerciseAdd({
+          id: sessionExercise.id,
+          sessionId: active.id,
+          exerciseId: sessionExercise.exerciseId,
+          order: sessionExercise.order,
+        });
       },
 
       removeExerciseFromSession: (sessionExerciseId) => {
@@ -230,6 +255,7 @@ export function createWorkoutStore(
             ),
           },
         });
+        onSessionExerciseRemove(sessionExerciseId);
       },
 
       logSet: (sessionExerciseId, reps, weight) => {

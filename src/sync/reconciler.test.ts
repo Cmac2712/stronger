@@ -119,6 +119,71 @@ describe("reconciler", () => {
   });
 });
 
+describe("reconciler — session exercises integration", () => {
+  type SessionExerciseRow = SyncableRow & {
+    user_id: string;
+    session_id: string;
+    exercise_id: string;
+    order: number;
+  };
+
+  function seRow(
+    id: string,
+    updated_at: string,
+    session_id: string,
+    exercise_id: string,
+    order: number,
+    deleted_at: string | null = null
+  ): SessionExerciseRow {
+    return { id, user_id: "u1", updated_at, deleted_at, session_id, exercise_id, order };
+  }
+
+  it("seeds local session exercises to remote when remote is empty", () => {
+    const local = [
+      seRow("se1", "2026-06-01T00:00:00.000Z", "s1", "bench-press", 0),
+      seRow("se2", "2026-06-01T00:01:00.000Z", "s1", "squat", 1),
+    ];
+    const result = reconcile(local, []);
+
+    expect(result.writes).toEqual([]);
+    expect(result.enqueues).toEqual(local);
+  });
+
+  it("hydrates remote session exercises into empty local", () => {
+    const remote = [
+      seRow("se1", "2026-06-01T00:00:00.000Z", "s1", "bench-press", 0),
+    ];
+    const result = reconcile([], remote);
+
+    expect(result.writes).toEqual(remote);
+    expect(result.enqueues).toEqual([]);
+  });
+
+  it("merges session exercises with mixed newer/older timestamps", () => {
+    const localSe1 = seRow("se1", "2026-06-01T00:00:00.000Z", "s1", "bench-press", 0);
+    const localSe2 = seRow("se2", "2026-06-01T02:00:00.000Z", "s1", "squat", 1);
+    const remoteSe1 = seRow("se1", "2026-06-01T01:00:00.000Z", "s1", "bench-press", 0);
+    const remoteSe3 = seRow("se3", "2026-06-01T00:00:00.000Z", "s1", "deadlift", 2);
+
+    const result = reconcile([localSe1, localSe2], [remoteSe1, remoteSe3]);
+
+    expect(result.writes).toEqual([remoteSe1, remoteSe3]);
+    expect(result.enqueues).toEqual([localSe2]);
+  });
+
+  it("handles tombstoned session exercises", () => {
+    const local = [seRow("se1", "2026-06-01T00:00:00.000Z", "s1", "bench-press", 0)];
+    const remote = [
+      seRow("se1", "2026-06-01T01:00:00.000Z", "s1", "bench-press", 0, "2026-06-01T01:00:00.000Z"),
+    ];
+
+    const result = reconcile(local, remote);
+
+    expect(result.writes).toEqual(remote);
+    expect(result.enqueues).toEqual([]);
+  });
+});
+
 describe("reconciler — sessions integration", () => {
   function sessionRow(
     id: string,

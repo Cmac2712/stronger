@@ -1,8 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { UserSettingsRow, SessionRow } from "./types";
+import { UserSettingsRow, SessionRow, SessionExerciseRow } from "./types";
 
 const USER_SETTINGS_KEY = "workout/mirror/user_settings/v1";
 const SESSIONS_KEY = "workout/mirror/sessions/v1";
+const SESSION_EXERCISES_KEY = "workout/mirror/session_exercises/v1";
 const LAST_PULLED_AT_KEY = "workout/sync/last_pulled_at/v1";
 
 export async function loadRawUserSettings(): Promise<UserSettingsRow | null> {
@@ -38,6 +39,27 @@ export async function writeSession(row: SessionRow): Promise<void> {
     rows.push(row);
   }
   await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(rows));
+}
+
+export async function loadRawSessionExercises(): Promise<SessionExerciseRow[]> {
+  const raw = await AsyncStorage.getItem(SESSION_EXERCISES_KEY);
+  return raw ? JSON.parse(raw) : [];
+}
+
+export async function loadSessionExercises(): Promise<SessionExerciseRow[]> {
+  const rows = await loadRawSessionExercises();
+  return rows.filter((r) => r.deleted_at === null);
+}
+
+export async function writeSessionExercise(row: SessionExerciseRow): Promise<void> {
+  const rows = await loadRawSessionExercises();
+  const idx = rows.findIndex((r) => r.id === row.id);
+  if (idx >= 0) {
+    rows[idx] = row;
+  } else {
+    rows.push(row);
+  }
+  await AsyncStorage.setItem(SESSION_EXERCISES_KEY, JSON.stringify(rows));
 }
 
 export async function loadLastPulledAt(): Promise<string | null> {

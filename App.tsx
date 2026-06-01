@@ -46,24 +46,25 @@ export default function App() {
           if (hasSyncData) {
             merged.restDurationMs = syncState.restDurationMs;
           }
-          // Sessions from sync mirror take precedence; exercises/sets
-          // still come from persistence until slices 5-6.
+          // Sessions and exercises from sync mirror take precedence;
+          // sets still come from persistence until slice 6.
           if (syncState.history.length > 0 || syncState.activeSession !== null) {
-            const exerciseMap = new Map<string, typeof base.history[number]["sessionExercises"]>();
+            const setsMap = new Map<string, typeof base.history[number]["sessionExercises"][number]["sets"]>();
             for (const s of [...base.history, ...(base.activeSession ? [base.activeSession] : [])]) {
-              exerciseMap.set(s.id, s.sessionExercises);
+              for (const se of s.sessionExercises) {
+                setsMap.set(se.id, se.sets);
+              }
             }
-            merged.history = syncState.history.map((s) => ({
+            const attachSets = (s: typeof syncState.history[number]) => ({
               ...s,
-              sessionExercises: exerciseMap.get(s.id) ?? s.sessionExercises,
-            }));
+              sessionExercises: s.sessionExercises.map((se) => ({
+                ...se,
+                sets: setsMap.get(se.id) ?? se.sets,
+              })),
+            });
+            merged.history = syncState.history.map(attachSets);
             if (syncState.activeSession) {
-              merged.activeSession = {
-                ...syncState.activeSession,
-                sessionExercises:
-                  exerciseMap.get(syncState.activeSession.id) ??
-                  syncState.activeSession.sessionExercises,
-              };
+              merged.activeSession = attachSets(syncState.activeSession);
             }
           }
           workoutStore.getState().hydrate(merged);
@@ -126,30 +127,45 @@ export default function App() {
               restDurationMs: pulled.userSettings.rest_duration_ms,
             });
           }
-          if (pulled.sessions.length > 0) {
-            const exerciseMap = new Map<string, typeof store.history[number]["sessionExercises"]>();
+          if (pulled.sessions.length > 0 || pulled.sessionExercises.length > 0) {
+            const setsMap = new Map<string, typeof store.history[number]["sessionExercises"][number]["sets"]>();
             for (const s of [
               ...store.history,
               ...(store.activeSession ? [store.activeSession] : []),
             ]) {
-              exerciseMap.set(s.id, s.sessionExercises);
+              for (const se of s.sessionExercises) {
+                setsMap.set(se.id, se.sets);
+              }
             }
+
+            const exercisesBySession = new Map<string, typeof store.history[number]["sessionExercises"]>();
+            for (const se of pulled.sessionExercises) {
+              const list = exercisesBySession.get(se.session_id) ?? [];
+              list.push({
+                id: se.id,
+                exerciseId: se.exercise_id,
+                order: se.order,
+                sets: setsMap.get(se.id) ?? [],
+              });
+              exercisesBySession.set(se.session_id, list);
+            }
+            for (const [, list] of exercisesBySession) {
+              list.sort((a, b) => a.order - b.order);
+            }
+
+            const buildSession = (r: typeof pulled.sessions[number]) => ({
+              id: r.id,
+              startedAt: r.started_at,
+              endedAt: r.ended_at,
+              sessionExercises: exercisesBySession.get(r.id) ?? [],
+            });
+
             const history = pulled.sessions
               .filter((r) => r.ended_at !== null)
-              .map((r) => ({
-                id: r.id,
-                startedAt: r.started_at,
-                endedAt: r.ended_at,
-                sessionExercises: exerciseMap.get(r.id) ?? [],
-              }));
+              .map(buildSession);
             const activeRow = pulled.sessions.find((r) => r.ended_at === null);
             const activeSession = activeRow
-              ? {
-                  id: activeRow.id,
-                  startedAt: activeRow.started_at,
-                  endedAt: activeRow.ended_at,
-                  sessionExercises: exerciseMap.get(activeRow.id) ?? [],
-                }
+              ? buildSession(activeRow)
               : store.activeSession;
             workoutStore.setState({ history, activeSession });
           }
