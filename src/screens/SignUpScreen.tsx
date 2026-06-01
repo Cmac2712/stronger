@@ -30,20 +30,19 @@ export function SignUpScreen({ onNavigateSignIn, onSignUpSuccess }: Props) {
     setSubmitting(true);
     setError(null);
 
+    const trimmedEmail = email.trim();
     const { error: signUpError } = await supabase.auth.signUp({
-      email: email.trim(),
+      email: trimmedEmail,
       password,
       options: { emailRedirectTo: EMAIL_REDIRECT_TO },
     });
 
+    setSubmitting(false);
     if (signUpError) {
       setError(signUpError.message);
-      setSubmitting(false);
       return;
     }
-
-    setSubmitting(false);
-    onSignUpSuccess(email.trim());
+    onSignUpSuccess(trimmedEmail);
   };
 
   return (

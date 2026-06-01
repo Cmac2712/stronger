@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { View, Text } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -40,36 +40,34 @@ export default function App() {
     };
   }, []);
 
-  const handleDeepLink = useCallback(
-    async (url: string) => {
-      if (supabase === null) return;
-      const code = extractAuthCode(url);
-      if (code === null) return;
-      await supabase.auth.exchangeCodeForSession(code);
-    },
-    [],
-  );
-
   useEffect(() => {
     if (supabase === null) {
       setAuthReady(true);
       return;
     }
+    const client = supabase;
     let cancelled = false;
-    supabase.auth.getSession().then(({ data }) => {
+
+    const exchangeCodeFromUrl = async (url: string) => {
+      const code = extractAuthCode(url);
+      if (code === null) return;
+      await client.auth.exchangeCodeForSession(code);
+    };
+
+    client.auth.getSession().then(({ data }) => {
       if (cancelled) return;
       setSession(data.session);
       setAuthReady(true);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: sub } = client.auth.onAuthStateChange((_event, next) => {
       setSession(next);
     });
 
     Linking.getInitialURL().then((url) => {
-      if (url) handleDeepLink(url);
+      if (url) exchangeCodeFromUrl(url);
     });
     const linkSub = Linking.addEventListener("url", (event) => {
-      handleDeepLink(event.url);
+      exchangeCodeFromUrl(event.url);
     });
 
     return () => {
@@ -77,7 +75,7 @@ export default function App() {
       sub.subscription.unsubscribe();
       linkSub.remove();
     };
-  }, [handleDeepLink]);
+  }, []);
 
   const onNavigateSignUp = useCallback(() => setAuthScreen("sign-up"), []);
   const onNavigateSignIn = useCallback(() => setAuthScreen("sign-in"), []);
