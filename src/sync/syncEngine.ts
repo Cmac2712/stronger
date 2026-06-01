@@ -427,12 +427,14 @@ export async function pull(): Promise<{
   return { userSettings, sessions, sessionExercises, sets };
 }
 
-export async function loadState(): Promise<PersistedState> {
-  const userSettings = await localMirror.loadUserSettings();
-  const sessionRows = await localMirror.loadSessions();
-  const exerciseRows = await localMirror.loadSessionExercises();
-  const setRows = await localMirror.loadSets();
-
+// Stitch the three sync tables back into the nested in-memory Session shape.
+// Used both for initial hydration from the local mirror and after a pull to
+// rebuild the store from refreshed rows.
+export function rowsToSessions(
+  sessionRows: SessionRow[],
+  exerciseRows: SessionExerciseRow[],
+  setRows: SetRow[]
+): Session[] {
   const setsByExercise = new Map<string, SetRow[]>();
   for (const row of setRows) {
     const list = setsByExercise.get(row.session_exercise_id) ?? [];
@@ -447,7 +449,7 @@ export async function loadState(): Promise<PersistedState> {
     exercisesBySession.set(row.session_id, list);
   }
 
-  const sessions: Session[] = sessionRows.map((r) => {
+  return sessionRows.map((r) => {
     const seRows = exercisesBySession.get(r.id) ?? [];
     seRows.sort((a, b) => a.order - b.order);
     return {
@@ -471,7 +473,15 @@ export async function loadState(): Promise<PersistedState> {
       }),
     };
   });
+}
 
+export async function loadState(): Promise<PersistedState> {
+  const userSettings = await localMirror.loadUserSettings();
+  const sessionRows = await localMirror.loadSessions();
+  const exerciseRows = await localMirror.loadSessionExercises();
+  const setRows = await localMirror.loadSets();
+
+  const sessions = rowsToSessions(sessionRows, exerciseRows, setRows);
   const active = sessions.find((s) => s.endedAt === null) ?? null;
   const history = sessions.filter((s) => s.endedAt !== null);
 

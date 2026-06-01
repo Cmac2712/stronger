@@ -91,49 +91,15 @@ export default function App() {
             });
           }
           if (pulled.sessions.length > 0 || pulled.sessionExercises.length > 0 || pulled.sets.length > 0) {
-            const setsByExercise = new Map<string, typeof pulled.sets>();
-            for (const s of pulled.sets) {
-              const list = setsByExercise.get(s.session_exercise_id) ?? [];
-              list.push(s);
-              setsByExercise.set(s.session_exercise_id, list);
-            }
-
-            const exercisesBySession = new Map<string, import("./src/types").SessionExercise[]>();
-            for (const se of pulled.sessionExercises) {
-              const list = exercisesBySession.get(se.session_id) ?? [];
-              const sRows = setsByExercise.get(se.id) ?? [];
-              sRows.sort((a, b) => a.set_number - b.set_number);
-              list.push({
-                id: se.id,
-                exerciseId: se.exercise_id,
-                order: se.order,
-                sets: sRows.map((s) => ({
-                  id: s.id,
-                  setNumber: s.set_number,
-                  reps: s.reps,
-                  weight: s.weight,
-                })),
-              });
-              exercisesBySession.set(se.session_id, list);
-            }
-            for (const [, list] of exercisesBySession) {
-              list.sort((a, b) => a.order - b.order);
-            }
-
-            const buildSession = (r: typeof pulled.sessions[number]) => ({
-              id: r.id,
-              startedAt: r.started_at,
-              endedAt: r.ended_at,
-              sessionExercises: exercisesBySession.get(r.id) ?? [],
-            });
-
-            const history = pulled.sessions
-              .filter((r) => r.ended_at !== null)
-              .map(buildSession);
-            const activeRow = pulled.sessions.find((r) => r.ended_at === null);
-            const activeSession = activeRow
-              ? buildSession(activeRow)
-              : workoutStore.getState().activeSession;
+            const sessions = syncEngine.rowsToSessions(
+              pulled.sessions,
+              pulled.sessionExercises,
+              pulled.sets
+            );
+            const history = sessions.filter((s) => s.endedAt !== null);
+            const activeSession =
+              sessions.find((s) => s.endedAt === null) ??
+              workoutStore.getState().activeSession;
             workoutStore.setState({ history, activeSession });
           }
         });

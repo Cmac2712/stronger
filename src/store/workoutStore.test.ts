@@ -731,7 +731,7 @@ describe("workoutStore", () => {
   describe("set sync callbacks", () => {
     it("logSet calls onSetLog with correct set row fields", () => {
       const logged: Array<{ id: string; sessionExerciseId: string; setNumber: number; reps: number; weight: number }> = [];
-      const store = createWorkoutStore(() => {}, () => {}, () => {}, () => {}, () => {}, (s) => logged.push(s), () => {}, () => {});
+      const store = createWorkoutStore(noop, noop, noop, noop, noop, (s) => logged.push(s), noop, noop);
       store.getState().startSession();
       store.getState().addExerciseToSession("bench-press");
       const seId = store.getState().activeSession!.sessionExercises[0].id;
@@ -751,7 +751,7 @@ describe("workoutStore", () => {
 
     it("updateSet calls onSetUpdate with the patched set and its sessionExerciseId", () => {
       const updated: Array<{ id: string; sessionExerciseId: string; setNumber: number; reps: number; weight: number }> = [];
-      const store = createWorkoutStore(() => {}, () => {}, () => {}, () => {}, () => {}, () => {}, (s) => updated.push(s), () => {});
+      const store = createWorkoutStore(noop, noop, noop, noop, noop, noop, (s) => updated.push(s), noop);
       store.getState().startSession();
       store.getState().addExerciseToSession("bench-press");
       const seId = store.getState().activeSession!.sessionExercises[0].id;
@@ -772,7 +772,7 @@ describe("workoutStore", () => {
 
     it("deleteSet calls onSetDelete with the set id", () => {
       const deleted: string[] = [];
-      const store = createWorkoutStore(() => {}, () => {}, () => {}, () => {}, () => {}, () => {}, () => {}, (id) => deleted.push(id));
+      const store = createWorkoutStore(noop, noop, noop, noop, noop, noop, noop, (id) => deleted.push(id));
       store.getState().startSession();
       store.getState().addExerciseToSession("bench-press");
       const seId = store.getState().activeSession!.sessionExercises[0].id;
