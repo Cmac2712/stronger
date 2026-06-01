@@ -5,7 +5,7 @@ import { createMutationQueue } from "./mutationQueue";
 import * as localMirror from "./localMirror";
 import { setSyncPaused } from "./syncStatus";
 import { genId } from "../util/id";
-import { UserSettingsRow, SessionRow, SessionExerciseRow, Mutation } from "./types";
+import { UserSettingsRow, SessionRow, SessionExerciseRow, Mutation, SyncableRow } from "./types";
 import type { PersistedState, Session } from "../types";
 import { SCHEMA_VERSION, DEFAULT_REST_DURATION_MS } from "../types";
 
@@ -74,6 +74,42 @@ function buildSessionExerciseMutation(
     },
     enqueuedAt: new Date().toISOString(),
   };
+}
+
+// Apply reconciler output for one table fetched in pull(): write remote-wins rows
+// to local, enqueue local-newer rows for upload, and report the max remote
+// updated_at so the caller can advance the pull cursor.
+async function reconcileFetched<T extends SyncableRow>(
+  result: { error: unknown; data: unknown[] | null },
+  mapRow: (r: Record<string, unknown>) => T,
+  loadLocal: () => Promise<T[]>,
+  writeLocal: (row: T) => Promise<void>,
+  buildMutation: (userId: string, row: T) => Mutation
+): Promise<string | null> {
+  if (result.error || !result.data) return null;
+
+  const mappedRemote = (result.data as Record<string, unknown>[]).map(mapRow);
+  const localRows = await loadLocal();
+  const { writes, enqueues } = reconcile(localRows, mappedRemote);
+
+  for (const row of writes) {
+    await writeLocal(row);
+  }
+
+  if (enqueues.length > 0) {
+    const userId = await currentUserId();
+    if (userId) {
+      for (const row of enqueues) {
+        await queue.enqueue(buildMutation(userId, row));
+      }
+    }
+  }
+
+  let max: string | null = null;
+  for (const r of mappedRemote) {
+    if (!max || r.updated_at > max) max = r.updated_at;
+  }
+  return max;
 }
 
 async function handleMutation(mutation: Mutation): Promise<void> {
@@ -220,104 +256,62 @@ export async function pull(): Promise<{
 
   const lastPulledAt = await localMirror.loadLastPulledAt();
 
-  let settingsQuery = supabase.from("user_settings").select("*");
-  if (lastPulledAt) {
-    settingsQuery = settingsQuery.gt("updated_at", lastPulledAt);
-  }
-
-  let sessionsQuery = supabase.from("sessions").select("*");
-  if (lastPulledAt) {
-    sessionsQuery = sessionsQuery.gt("updated_at", lastPulledAt);
-  }
-
-  let sessionExercisesQuery = supabase.from("session_exercises").select("*");
-  if (lastPulledAt) {
-    sessionExercisesQuery = sessionExercisesQuery.gt("updated_at", lastPulledAt);
-  }
+  const sinceCursor = (table: string) => {
+    let q = supabase!.from(table).select("*");
+    if (lastPulledAt) q = q.gt("updated_at", lastPulledAt);
+    return q;
+  };
 
   const [settingsResult, sessionsResult, sessionExercisesResult] = await Promise.all([
-    settingsQuery,
-    sessionsQuery,
-    sessionExercisesQuery,
+    sinceCursor("user_settings"),
+    sinceCursor("sessions"),
+    sinceCursor("session_exercises"),
   ]);
 
   let maxUpdatedAt = lastPulledAt;
+  const advanceMax = (m: string | null) => {
+    if (m && (!maxUpdatedAt || m > maxUpdatedAt)) maxUpdatedAt = m;
+  };
 
-  // Reconcile user_settings
-  if (!settingsResult.error && settingsResult.data) {
-    const mappedRemote: UserSettingsRow[] = settingsResult.data.map(
-      (r: Record<string, unknown>) => ({
+  advanceMax(
+    await reconcileFetched<UserSettingsRow>(
+      settingsResult,
+      (r) => ({
         id: r.user_id as string,
         rest_duration_ms: r.rest_duration_ms as number,
         updated_at: r.updated_at as string,
         deleted_at: (r.deleted_at as string | null) ?? null,
-      })
-    );
+      }),
+      async () => {
+        const row = await localMirror.loadRawUserSettings();
+        return row ? [row] : [];
+      },
+      localMirror.writeUserSettings,
+      buildUserSettingsMutation
+    )
+  );
 
-    const localRow = await localMirror.loadRawUserSettings();
-    const localRows: UserSettingsRow[] = localRow ? [localRow] : [];
-    const result = reconcile(localRows, mappedRemote);
-
-    for (const row of result.writes) {
-      await localMirror.writeUserSettings(row);
-    }
-
-    if (result.enqueues.length > 0) {
-      const userId = await currentUserId();
-      if (userId) {
-        for (const row of result.enqueues) {
-          await queue.enqueue(buildUserSettingsMutation(userId, row));
-        }
-      }
-    }
-
-    for (const r of mappedRemote) {
-      if (!maxUpdatedAt || r.updated_at > maxUpdatedAt) {
-        maxUpdatedAt = r.updated_at;
-      }
-    }
-  }
-
-  // Reconcile sessions
-  if (!sessionsResult.error && sessionsResult.data) {
-    const mappedRemote: SessionRow[] = sessionsResult.data.map(
-      (r: Record<string, unknown>) => ({
+  advanceMax(
+    await reconcileFetched<SessionRow>(
+      sessionsResult,
+      (r) => ({
         id: r.id as string,
         user_id: r.user_id as string,
         started_at: r.started_at as number,
         ended_at: (r.ended_at as number | null) ?? null,
         updated_at: r.updated_at as string,
         deleted_at: (r.deleted_at as string | null) ?? null,
-      })
-    );
+      }),
+      localMirror.loadRawSessions,
+      localMirror.writeSession,
+      buildSessionMutation
+    )
+  );
 
-    const localRows = await localMirror.loadRawSessions();
-    const result = reconcile(localRows, mappedRemote);
-
-    for (const row of result.writes) {
-      await localMirror.writeSession(row);
-    }
-
-    if (result.enqueues.length > 0) {
-      const userId = await currentUserId();
-      if (userId) {
-        for (const row of result.enqueues) {
-          await queue.enqueue(buildSessionMutation(userId, row));
-        }
-      }
-    }
-
-    for (const r of mappedRemote) {
-      if (!maxUpdatedAt || r.updated_at > maxUpdatedAt) {
-        maxUpdatedAt = r.updated_at;
-      }
-    }
-  }
-
-  // Reconcile session_exercises
-  if (!sessionExercisesResult.error && sessionExercisesResult.data) {
-    const mappedRemote: SessionExerciseRow[] = sessionExercisesResult.data.map(
-      (r: Record<string, unknown>) => ({
+  advanceMax(
+    await reconcileFetched<SessionExerciseRow>(
+      sessionExercisesResult,
+      (r) => ({
         id: r.id as string,
         user_id: r.user_id as string,
         session_id: r.session_id as string,
@@ -325,31 +319,12 @@ export async function pull(): Promise<{
         order: r.order as number,
         updated_at: r.updated_at as string,
         deleted_at: (r.deleted_at as string | null) ?? null,
-      })
-    );
-
-    const localRows = await localMirror.loadRawSessionExercises();
-    const result = reconcile(localRows, mappedRemote);
-
-    for (const row of result.writes) {
-      await localMirror.writeSessionExercise(row);
-    }
-
-    if (result.enqueues.length > 0) {
-      const userId = await currentUserId();
-      if (userId) {
-        for (const row of result.enqueues) {
-          await queue.enqueue(buildSessionExerciseMutation(userId, row));
-        }
-      }
-    }
-
-    for (const r of mappedRemote) {
-      if (!maxUpdatedAt || r.updated_at > maxUpdatedAt) {
-        maxUpdatedAt = r.updated_at;
-      }
-    }
-  }
+      }),
+      localMirror.loadRawSessionExercises,
+      localMirror.writeSessionExercise,
+      buildSessionExerciseMutation
+    )
+  );
 
   if (maxUpdatedAt && maxUpdatedAt !== lastPulledAt) {
     await localMirror.saveLastPulledAt(maxUpdatedAt);
