@@ -13,15 +13,38 @@ const queue = createMutationQueue({
   },
 });
 
+async function currentUserId(): Promise<string | undefined> {
+  if (!supabase) return undefined;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session?.user?.id;
+}
+
+function buildUserSettingsMutation(
+  userId: string,
+  row: UserSettingsRow
+): Mutation {
+  return {
+    id: genId(),
+    table: "user_settings",
+    row: {
+      user_id: userId,
+      rest_duration_ms: row.rest_duration_ms,
+      updated_at: row.updated_at,
+      deleted_at: row.deleted_at,
+    },
+    enqueuedAt: new Date().toISOString(),
+  };
+}
+
 async function handleMutation(mutation: Mutation): Promise<void> {
   if (!supabase) {
     throw Object.assign(new Error("Supabase not configured"), { status: 500 });
   }
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) {
+  const userId = await currentUserId();
+  if (!userId) {
     throw Object.assign(new Error("Not authenticated"), { status: 401 });
   }
 
@@ -31,15 +54,10 @@ async function handleMutation(mutation: Mutation): Promise<void> {
   }
 }
 
-export async function setUserSetting(
-  restDurationMs: number
-): Promise<void> {
+export async function setUserSetting(restDurationMs: number): Promise<void> {
   if (!supabase) return;
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const userId = session?.user?.id;
+  const userId = await currentUserId();
   if (!userId) return;
 
   const now = new Date().toISOString();
@@ -51,17 +69,7 @@ export async function setUserSetting(
   };
 
   await localMirror.writeUserSettings(row);
-  await queue.enqueue({
-    id: genId(),
-    table: "user_settings",
-    row: {
-      user_id: userId,
-      rest_duration_ms: restDurationMs,
-      updated_at: now,
-      deleted_at: null,
-    },
-    enqueuedAt: now,
-  });
+  await queue.enqueue(buildUserSettingsMutation(userId, row));
   void queue.drain(handleMutation);
 }
 
@@ -87,7 +95,7 @@ export async function pull(): Promise<UserSettingsRow | null> {
       id: r.user_id as string,
       rest_duration_ms: r.rest_duration_ms as number,
       updated_at: r.updated_at as string,
-      deleted_at: (r.deleted_at as string) ?? null,
+      deleted_at: (r.deleted_at as string | null) ?? null,
     })
   );
 
@@ -100,24 +108,13 @@ export async function pull(): Promise<UserSettingsRow | null> {
     await localMirror.writeUserSettings(row);
   }
 
-  for (const row of result.enqueues) {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
-    if (!userId) continue;
-
-    await queue.enqueue({
-      id: genId(),
-      table: "user_settings",
-      row: {
-        user_id: userId,
-        rest_duration_ms: row.rest_duration_ms,
-        updated_at: row.updated_at,
-        deleted_at: row.deleted_at,
-      },
-      enqueuedAt: new Date().toISOString(),
-    });
+  if (result.enqueues.length > 0) {
+    const userId = await currentUserId();
+    if (userId) {
+      for (const row of result.enqueues) {
+        await queue.enqueue(buildUserSettingsMutation(userId, row));
+      }
+    }
   }
 
   if (mappedRemote.length > 0) {
@@ -210,10 +207,4 @@ export async function getSession(): Promise<Session | null> {
     data: { session },
   } = await supabase.auth.getSession();
   return session;
-}
-
-export function resumeSync(): void {
-  queue.resume();
-  setSyncPaused(false);
-  void queue.drain(handleMutation);
 }

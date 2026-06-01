@@ -83,10 +83,6 @@ export function createMutationQueue(options?: MutationQueueOptions) {
       }
     },
 
-    pause() {
-      paused = true;
-    },
-
     resume() {
       paused = false;
     },

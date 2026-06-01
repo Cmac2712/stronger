@@ -4,18 +4,14 @@ import { UserSettingsRow } from "./types";
 const USER_SETTINGS_KEY = "workout/mirror/user_settings/v1";
 const LAST_PULLED_AT_KEY = "workout/sync/last_pulled_at/v1";
 
-export async function loadUserSettings(): Promise<UserSettingsRow | null> {
-  const raw = await AsyncStorage.getItem(USER_SETTINGS_KEY);
-  if (!raw) return null;
-  const row: UserSettingsRow = JSON.parse(raw);
-  if (row.deleted_at !== null) return null;
-  return row;
-}
-
 export async function loadRawUserSettings(): Promise<UserSettingsRow | null> {
   const raw = await AsyncStorage.getItem(USER_SETTINGS_KEY);
-  if (!raw) return null;
-  return JSON.parse(raw);
+  return raw ? JSON.parse(raw) : null;
+}
+
+export async function loadUserSettings(): Promise<UserSettingsRow | null> {
+  const row = await loadRawUserSettings();
+  return row !== null && row.deleted_at === null ? row : null;
 }
 
 export async function writeUserSettings(row: UserSettingsRow): Promise<void> {

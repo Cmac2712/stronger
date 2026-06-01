@@ -7,7 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import type { Session } from "@supabase/supabase-js";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { SignInScreen } from "./src/screens/SignInScreen";
-import { workoutStore } from "./src/store/workoutStore";
+import { initialState, workoutStore } from "./src/store/workoutStore";
 import { loadState } from "./src/persistence/persistence";
 import { supabaseConfigError } from "./src/supabase/supabaseClient";
 import * as syncEngine from "./src/sync/syncEngine";
@@ -27,19 +27,13 @@ export default function App() {
     Promise.all([loadState(), syncEngine.loadUserSettings()]).then(
       ([oldState, userSettings]) => {
         if (cancelled) return;
-        if (oldState !== null) {
-          const merged =
+        const base = oldState ?? (userSettings !== null ? initialState : null);
+        if (base !== null) {
+          workoutStore.getState().hydrate(
             userSettings !== null
-              ? { ...oldState, restDurationMs: userSettings.rest_duration_ms }
-              : oldState;
-          workoutStore.getState().hydrate(merged);
-        } else if (userSettings !== null) {
-          workoutStore.getState().hydrate({
-            schemaVersion: 1,
-            activeSession: null,
-            history: [],
-            restDurationMs: userSettings.rest_duration_ms,
-          });
+              ? { ...base, restDurationMs: userSettings.rest_duration_ms }
+              : base
+          );
         }
         setHydrated(true);
       }
