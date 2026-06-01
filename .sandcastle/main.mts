@@ -41,12 +41,18 @@ const planSchema = z.object({
 
 // Maximum number of plan→execute→merge cycles before stopping.
 // Raise this if your backlog is large; lower it for a quick smoke-test run.
-const MAX_ITERATIONS = 10;
+const MAX_ITERATIONS = 20;
 
 // Hooks run inside the sandbox before the agent starts each iteration.
-// npm install ensures the sandbox always has fresh dependencies.
+// yarn install matches the project's local tooling (yarn.lock is the
+// source of truth) and avoids the npm-vs-yarn ambiguity that caused
+// in-sandbox yarn calls to hang on a missing binary. The default 60s
+// hook timeout isn't enough for ~550 packages on a cold sandbox, so
+// raise it to 10 minutes.
 const hooks = {
-  sandbox: { onSandboxReady: [{ command: "npm install" }] },
+  // sandbox: {
+  //   onSandboxReady: [{ command: "yarn install", timeoutMs: 600_000 }],
+  // },
 };
 
 // Copy node_modules from the host into the worktree before each sandbox
@@ -78,7 +84,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
     // not write code. (Structured output requires maxIterations: 1.)
     maxIterations: 1,
     // Opus for planning: dependency analysis benefits from deeper reasoning.
-    agent: sandcastle.claudeCode("claude-opus-4-8"),
+    agent: sandcastle.claudeCode("claude-opus-4-6"),
     promptFile: "./.sandcastle/plan-prompt.md",
     // Extract and validate the <plan> JSON into a typed object. Throws
     // StructuredOutputError if the tag is missing, the JSON is malformed, or
@@ -131,7 +137,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
         const implement = await sandbox.run({
           name: "implementer",
           maxIterations: 100,
-          agent: sandcastle.claudeCode("claude-opus-4-8"),
+          agent: sandcastle.claudeCode("claude-opus-4-6"),
           promptFile: "./.sandcastle/implement-prompt.md",
           promptArgs: {
             TASK_ID: issue.id,

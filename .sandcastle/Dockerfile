@@ -15,6 +15,11 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
   && apt-get update && apt-get install -y gh \
   && rm -rf /var/lib/apt/lists/*
 
+# Install yarn 1.x via corepack so the sandbox matches the project's local
+# tooling (yarn.lock is the source of truth; npm-vs-yarn ambiguity caused
+# in-sandbox yarn calls to hang on a missing binary).
+RUN corepack enable && corepack prepare yarn@1.22.22 --activate
+
 # Build-args for UID/GID alignment: sandcastle docker build-image
 # defaults these to the host user's UID/GID so image-built files
 # and bind-mounted files share an owner without runtime chown.
