@@ -26,6 +26,7 @@
     "@supabase/supabase-js": "^2.106.2",
     "expo": "~56.0.0",
     "expo-haptics": "~56.0.3",
+    "expo-linking": "~56.0.13",
     "expo-status-bar": "~56.0.4",
     "nativewind": "^4.1.23",
     "react": "19.2.3",

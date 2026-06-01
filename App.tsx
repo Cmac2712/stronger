@@ -1,22 +1,30 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { View, Text } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import * as Linking from "expo-linking";
 import type { Session } from "@supabase/supabase-js";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { SignInScreen } from "./src/screens/SignInScreen";
+import { SignUpScreen } from "./src/screens/SignUpScreen";
+import { VerifyEmailScreen } from "./src/screens/VerifyEmailScreen";
 import { workoutStore } from "./src/store/workoutStore";
 import { loadState } from "./src/persistence/persistence";
 import { supabase, supabaseConfigError } from "./src/supabase/supabaseClient";
+import { extractAuthCode } from "./src/supabase/authUtils";
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import './global.css';
+
+type AuthScreen = "sign-in" | "sign-up" | "verify-email";
 
 export default function App() {
   const [hydrated, setHydrated] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [authScreen, setAuthScreen] = useState<AuthScreen>("sign-in");
+  const [pendingEmail, setPendingEmail] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -32,9 +40,18 @@ export default function App() {
     };
   }, []);
 
+  const handleDeepLink = useCallback(
+    async (url: string) => {
+      if (supabase === null) return;
+      const code = extractAuthCode(url);
+      if (code === null) return;
+      await supabase.auth.exchangeCodeForSession(code);
+    },
+    [],
+  );
+
   useEffect(() => {
     if (supabase === null) {
-      // ConfigErrorScreen renders below — don't block the UI on auth.
       setAuthReady(true);
       return;
     }
@@ -47,10 +64,26 @@ export default function App() {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next);
     });
+
+    Linking.getInitialURL().then((url) => {
+      if (url) handleDeepLink(url);
+    });
+    const linkSub = Linking.addEventListener("url", (event) => {
+      handleDeepLink(event.url);
+    });
+
     return () => {
       cancelled = true;
       sub.subscription.unsubscribe();
+      linkSub.remove();
     };
+  }, [handleDeepLink]);
+
+  const onNavigateSignUp = useCallback(() => setAuthScreen("sign-up"), []);
+  const onNavigateSignIn = useCallback(() => setAuthScreen("sign-in"), []);
+  const onSignUpSuccess = useCallback((email: string) => {
+    setPendingEmail(email);
+    setAuthScreen("verify-email");
   }, []);
 
   if (supabaseConfigError !== null) {
@@ -70,7 +103,13 @@ export default function App() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           {session === null ? (
-            <SignInScreen />
+            <AuthFlow
+              screen={authScreen}
+              pendingEmail={pendingEmail}
+              onNavigateSignIn={onNavigateSignIn}
+              onNavigateSignUp={onNavigateSignUp}
+              onSignUpSuccess={onSignUpSuccess}
+            />
           ) : (
             <NavigationContainer>
               <RootNavigator />
@@ -81,6 +120,40 @@ export default function App() {
       </GestureHandlerRootView>
     </GluestackUIProvider>
   );
+}
+
+function AuthFlow({
+  screen,
+  pendingEmail,
+  onNavigateSignIn,
+  onNavigateSignUp,
+  onSignUpSuccess,
+}: {
+  screen: AuthScreen;
+  pendingEmail: string;
+  onNavigateSignIn: () => void;
+  onNavigateSignUp: () => void;
+  onSignUpSuccess: (email: string) => void;
+}) {
+  switch (screen) {
+    case "sign-up":
+      return (
+        <SignUpScreen
+          onNavigateSignIn={onNavigateSignIn}
+          onSignUpSuccess={onSignUpSuccess}
+        />
+      );
+    case "verify-email":
+      return (
+        <VerifyEmailScreen
+          email={pendingEmail}
+          onNavigateSignIn={onNavigateSignIn}
+        />
+      );
+    case "sign-in":
+    default:
+      return <SignInScreen onNavigateSignUp={onNavigateSignUp} />;
+  }
 }
 
 function ConfigErrorScreen({ message }: { message: string }) {

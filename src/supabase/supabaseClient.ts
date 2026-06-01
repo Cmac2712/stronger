@@ -23,7 +23,7 @@ export const supabase: SupabaseClient | null = resolved.ok
         storage: AsyncStorage,
         autoRefreshToken: true,
         persistSession: true,
-        // No deep-link / URL session detection in this slice (sign-in only).
+        flowType: "pkce",
         detectSessionInUrl: false,
       },
     })
