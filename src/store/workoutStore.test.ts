@@ -3,7 +3,7 @@ import { StoreApi } from "zustand/vanilla";
 import { PersistedState, SCHEMA_VERSION, Session, Set } from "../types";
 
 function freshStore(): StoreApi<WorkoutStore> {
-  return createWorkoutStore(() => {}, () => {});
+  return createWorkoutStore(() => {}, () => {}, () => {});
 }
 
 function session(
@@ -405,7 +405,7 @@ describe("workoutStore", () => {
 
     it("persists on update", () => {
       const saved: PersistedState[] = [];
-      const store = createWorkoutStore((s) => saved.push(s));
+      const store = createWorkoutStore((s) => saved.push(s), () => {}, () => {});
       store.getState().startSession();
       store.getState().addExerciseToSession("bench-press");
       const seId = store.getState().activeSession!.sessionExercises[0].id;
@@ -478,7 +478,7 @@ describe("workoutStore", () => {
 
     it("persists on delete", () => {
       const saved: PersistedState[] = [];
-      const store = createWorkoutStore((s) => saved.push(s));
+      const store = createWorkoutStore((s) => saved.push(s), () => {}, () => {});
       store.getState().startSession();
       store.getState().addExerciseToSession("bench-press");
       const seId = store.getState().activeSession!.sessionExercises[0].id;
@@ -638,7 +638,7 @@ describe("workoutStore", () => {
   describe("persistence seam", () => {
     it("persists a snapshot on every mutation", () => {
       const saved: unknown[] = [];
-      const store = createWorkoutStore((state) => saved.push(state));
+      const store = createWorkoutStore((state) => saved.push(state), () => {}, () => {});
       store.getState().startSession();
       store.getState().addExerciseToSession("bench-press");
       expect(saved).toHaveLength(2);
@@ -647,17 +647,52 @@ describe("workoutStore", () => {
 
     it("includes restDurationMs in the persisted snapshot", () => {
       const saved: PersistedState[] = [];
-      const store = createWorkoutStore((state) => saved.push(state));
+      const store = createWorkoutStore((state) => saved.push(state), () => {}, () => {});
       store.getState().setRestDuration(90_000);
       expect(saved[saved.length - 1].restDurationMs).toBe(90_000);
     });
 
     it("setRestDuration calls the onRestDurationChange callback", () => {
       const synced: number[] = [];
-      const store = createWorkoutStore(() => {}, (ms) => synced.push(ms));
+      const store = createWorkoutStore(() => {}, (ms) => synced.push(ms), () => {});
       store.getState().setRestDuration(90_000);
       store.getState().setRestDuration(60_000);
       expect(synced).toEqual([90_000, 60_000]);
+    });
+  });
+
+  describe("session sync callback", () => {
+    it("startSession calls onSessionChange with the new session", () => {
+      const synced: Array<{ id: string; startedAt: number; endedAt: number | null }> = [];
+      const store = createWorkoutStore(() => {}, () => {}, (s) => synced.push(s));
+      store.getState().startSession();
+
+      expect(synced).toHaveLength(1);
+      const active = store.getState().activeSession!;
+      expect(synced[0]).toEqual({
+        id: active.id,
+        startedAt: active.startedAt,
+        endedAt: null,
+      });
+    });
+
+    it("endSession calls onSessionChange with ended_at set", () => {
+      const synced: Array<{ id: string; startedAt: number; endedAt: number | null }> = [];
+      const store = createWorkoutStore(() => {}, () => {}, (s) => synced.push(s));
+      store.getState().startSession();
+      synced.length = 0;
+
+      store.getState().endSession();
+
+      expect(synced).toHaveLength(1);
+      expect(synced[0].endedAt).not.toBeNull();
+      expect(typeof synced[0].endedAt).toBe("number");
+      const ended = store.getState().history[store.getState().history.length - 1];
+      expect(synced[0]).toEqual({
+        id: ended.id,
+        startedAt: ended.startedAt,
+        endedAt: ended.endedAt,
+      });
     });
   });
 

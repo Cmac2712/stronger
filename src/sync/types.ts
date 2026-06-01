@@ -8,6 +8,12 @@ export type UserSettingsRow = SyncableRow & {
   rest_duration_ms: number;
 };
 
+export type SessionRow = SyncableRow & {
+  user_id: string;
+  started_at: number;
+  ended_at: number | null;
+};
+
 export type Mutation = {
   id: string;
   table: string;

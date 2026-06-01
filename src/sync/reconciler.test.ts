@@ -1,5 +1,5 @@
 import { reconcile } from "./reconciler";
-import { SyncableRow } from "./types";
+import { SyncableRow, SessionRow } from "./types";
 
 type TestRow = SyncableRow & { value: number };
 
@@ -116,5 +116,62 @@ describe("reconciler", () => {
 
     expect(result.writes).toEqual([]);
     expect(result.enqueues).toEqual(local);
+  });
+});
+
+describe("reconciler — sessions integration", () => {
+  function sessionRow(
+    id: string,
+    updated_at: string,
+    started_at: number,
+    ended_at: number | null = null,
+    deleted_at: string | null = null
+  ): SessionRow {
+    return { id, user_id: "u1", updated_at, deleted_at, started_at, ended_at };
+  }
+
+  it("seeds local sessions to remote when remote is empty", () => {
+    const local = [
+      sessionRow("s1", "2026-06-01T00:00:00.000Z", 1000, 2000),
+      sessionRow("s2", "2026-06-01T00:01:00.000Z", 3000, null),
+    ];
+    const result = reconcile(local, []);
+
+    expect(result.writes).toEqual([]);
+    expect(result.enqueues).toEqual(local);
+  });
+
+  it("hydrates remote sessions into empty local", () => {
+    const remote = [
+      sessionRow("s1", "2026-06-01T00:00:00.000Z", 1000, 2000),
+    ];
+    const result = reconcile([], remote);
+
+    expect(result.writes).toEqual(remote);
+    expect(result.enqueues).toEqual([]);
+  });
+
+  it("merges sessions with mixed newer/older timestamps", () => {
+    const localS1 = sessionRow("s1", "2026-06-01T00:00:00.000Z", 1000, null);
+    const localS2 = sessionRow("s2", "2026-06-01T02:00:00.000Z", 3000, 4000);
+    const remoteS1 = sessionRow("s1", "2026-06-01T01:00:00.000Z", 1000, 2000);
+    const remoteS3 = sessionRow("s3", "2026-06-01T00:00:00.000Z", 5000, null);
+
+    const result = reconcile([localS1, localS2], [remoteS1, remoteS3]);
+
+    expect(result.writes).toEqual([remoteS1, remoteS3]);
+    expect(result.enqueues).toEqual([localS2]);
+  });
+
+  it("handles tombstoned sessions", () => {
+    const local = [sessionRow("s1", "2026-06-01T00:00:00.000Z", 1000, 2000)];
+    const remote = [
+      sessionRow("s1", "2026-06-01T01:00:00.000Z", 1000, 2000, "2026-06-01T01:00:00.000Z"),
+    ];
+
+    const result = reconcile(local, remote);
+
+    expect(result.writes).toEqual(remote);
+    expect(result.enqueues).toEqual([]);
   });
 });

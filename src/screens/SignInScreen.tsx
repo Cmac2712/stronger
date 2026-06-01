@@ -18,10 +18,15 @@ export function SignInScreen({ onNavigateSignUp }: Props) {
     if (submitting) return;
     setSubmitting(true);
     setError(null);
+    const store = workoutStore.getState();
+    const allSessions = [
+      ...store.history,
+      ...(store.activeSession ? [store.activeSession] : []),
+    ];
     const { error: signInError, userSettings } = await syncEngine.signIn(
       email,
       password,
-      workoutStore.getState().restDurationMs
+      { restDurationMs: store.restDurationMs, sessions: allSessions }
     );
     if (signInError) {
       setError(signInError.message);

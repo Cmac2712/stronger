@@ -20,6 +20,11 @@ import {
 
 type Persist = (state: PersistedState) => void;
 type OnRestDurationChange = (durationMs: number) => void;
+type OnSessionChange = (session: {
+  id: string;
+  startedAt: number;
+  endedAt: number | null;
+}) => void;
 
 export type SessionSummary = {
   id: string;
@@ -136,9 +141,15 @@ const defaultOnRestDurationChange: OnRestDurationChange = (durationMs) => {
   void syncEngine.setUserSetting(durationMs).catch(() => {});
 };
 
+const defaultOnSessionChange: OnSessionChange = (session) => {
+  const syncEngine = require("../sync/syncEngine");
+  void syncEngine.upsertSession(session).catch(() => {});
+};
+
 export function createWorkoutStore(
   persist: Persist = defaultPersist,
-  onRestDurationChange: OnRestDurationChange = defaultOnRestDurationChange
+  onRestDurationChange: OnRestDurationChange = defaultOnRestDurationChange,
+  onSessionChange: OnSessionChange = defaultOnSessionChange
 ) {
   return createStore<WorkoutStore>((set, get) => {
     // Apply a state update then persist the resulting snapshot.
@@ -162,6 +173,11 @@ export function createWorkoutStore(
           sessionExercises: [],
         };
         commit({ ...get(), activeSession: session });
+        onSessionChange({
+          id: session.id,
+          startedAt: session.startedAt,
+          endedAt: session.endedAt,
+        });
       },
 
       endSession: () => {
@@ -174,6 +190,11 @@ export function createWorkoutStore(
           ...get(),
           activeSession: null,
           history: [...get().history, ended],
+        });
+        onSessionChange({
+          id: ended.id,
+          startedAt: ended.startedAt,
+          endedAt: ended.endedAt,
         });
       },
 

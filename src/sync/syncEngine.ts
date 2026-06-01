@@ -1,11 +1,13 @@
-import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session as SupabaseSession } from "@supabase/supabase-js";
 import { supabase } from "../supabase/supabaseClient";
 import { reconcile } from "./reconciler";
 import { createMutationQueue } from "./mutationQueue";
 import * as localMirror from "./localMirror";
 import { setSyncPaused } from "./syncStatus";
 import { genId } from "../util/id";
-import { UserSettingsRow, Mutation } from "./types";
+import { UserSettingsRow, SessionRow, Mutation } from "./types";
+import type { PersistedState, Session } from "../types";
+import { SCHEMA_VERSION, DEFAULT_REST_DURATION_MS } from "../types";
 
 const queue = createMutationQueue({
   onPause: () => {
@@ -73,93 +75,276 @@ export async function setUserSetting(restDurationMs: number): Promise<void> {
   void queue.drain(handleMutation);
 }
 
+export async function upsertSession(session: {
+  id: string;
+  startedAt: number;
+  endedAt: number | null;
+}): Promise<void> {
+  if (!supabase) return;
+
+  const userId = await currentUserId();
+  if (!userId) return;
+
+  const now = new Date().toISOString();
+  const row: SessionRow = {
+    id: session.id,
+    user_id: userId,
+    started_at: session.startedAt,
+    ended_at: session.endedAt,
+    updated_at: now,
+    deleted_at: null,
+  };
+
+  await localMirror.writeSession(row);
+  await queue.enqueue({
+    id: genId(),
+    table: "sessions",
+    row: {
+      id: row.id,
+      user_id: userId,
+      started_at: row.started_at,
+      ended_at: row.ended_at,
+      updated_at: row.updated_at,
+      deleted_at: row.deleted_at,
+    },
+    enqueuedAt: new Date().toISOString(),
+  });
+  void queue.drain(handleMutation);
+}
+
+export async function tombstoneSession(sessionId: string): Promise<void> {
+  if (!supabase) return;
+
+  const userId = await currentUserId();
+  if (!userId) return;
+
+  const now = new Date().toISOString();
+  const rows = await localMirror.loadRawSessions();
+  const existing = rows.find((r) => r.id === sessionId);
+  const row: SessionRow = {
+    id: sessionId,
+    user_id: userId,
+    started_at: existing?.started_at ?? 0,
+    ended_at: existing?.ended_at ?? null,
+    updated_at: now,
+    deleted_at: now,
+  };
+
+  await localMirror.writeSession(row);
+  await queue.enqueue({
+    id: genId(),
+    table: "sessions",
+    row: {
+      id: row.id,
+      user_id: userId,
+      started_at: row.started_at,
+      ended_at: row.ended_at,
+      updated_at: row.updated_at,
+      deleted_at: row.deleted_at,
+    },
+    enqueuedAt: new Date().toISOString(),
+  });
+  void queue.drain(handleMutation);
+}
+
 export async function loadUserSettings(): Promise<UserSettingsRow | null> {
   return localMirror.loadUserSettings();
 }
 
-export async function pull(): Promise<UserSettingsRow | null> {
-  if (!supabase) return null;
+export async function pull(): Promise<{
+  userSettings: UserSettingsRow | null;
+  sessions: SessionRow[];
+}> {
+  if (!supabase) return { userSettings: null, sessions: [] };
 
   const lastPulledAt = await localMirror.loadLastPulledAt();
 
-  let query = supabase.from("user_settings").select("*");
+  let settingsQuery = supabase.from("user_settings").select("*");
   if (lastPulledAt) {
-    query = query.gt("updated_at", lastPulledAt);
+    settingsQuery = settingsQuery.gt("updated_at", lastPulledAt);
   }
 
-  const { data: remoteRows, error } = await query;
-  if (error || !remoteRows) return localMirror.loadUserSettings();
-
-  const mappedRemote: UserSettingsRow[] = remoteRows.map(
-    (r: Record<string, unknown>) => ({
-      id: r.user_id as string,
-      rest_duration_ms: r.rest_duration_ms as number,
-      updated_at: r.updated_at as string,
-      deleted_at: (r.deleted_at as string | null) ?? null,
-    })
-  );
-
-  const localRow = await localMirror.loadRawUserSettings();
-  const localRows: UserSettingsRow[] = localRow ? [localRow] : [];
-
-  const result = reconcile(localRows, mappedRemote);
-
-  for (const row of result.writes) {
-    await localMirror.writeUserSettings(row);
+  let sessionsQuery = supabase.from("sessions").select("*");
+  if (lastPulledAt) {
+    sessionsQuery = sessionsQuery.gt("updated_at", lastPulledAt);
   }
 
-  if (result.enqueues.length > 0) {
-    const userId = await currentUserId();
-    if (userId) {
-      for (const row of result.enqueues) {
-        await queue.enqueue(buildUserSettingsMutation(userId, row));
+  const [settingsResult, sessionsResult] = await Promise.all([
+    settingsQuery,
+    sessionsQuery,
+  ]);
+
+  let maxUpdatedAt = lastPulledAt;
+
+  // Reconcile user_settings
+  if (!settingsResult.error && settingsResult.data) {
+    const mappedRemote: UserSettingsRow[] = settingsResult.data.map(
+      (r: Record<string, unknown>) => ({
+        id: r.user_id as string,
+        rest_duration_ms: r.rest_duration_ms as number,
+        updated_at: r.updated_at as string,
+        deleted_at: (r.deleted_at as string | null) ?? null,
+      })
+    );
+
+    const localRow = await localMirror.loadRawUserSettings();
+    const localRows: UserSettingsRow[] = localRow ? [localRow] : [];
+    const result = reconcile(localRows, mappedRemote);
+
+    for (const row of result.writes) {
+      await localMirror.writeUserSettings(row);
+    }
+
+    if (result.enqueues.length > 0) {
+      const userId = await currentUserId();
+      if (userId) {
+        for (const row of result.enqueues) {
+          await queue.enqueue(buildUserSettingsMutation(userId, row));
+        }
+      }
+    }
+
+    for (const r of mappedRemote) {
+      if (!maxUpdatedAt || r.updated_at > maxUpdatedAt) {
+        maxUpdatedAt = r.updated_at;
       }
     }
   }
 
-  if (mappedRemote.length > 0) {
-    const maxUpdatedAt = mappedRemote.reduce(
-      (max, r) => (r.updated_at > max ? r.updated_at : max),
-      mappedRemote[0].updated_at
+  // Reconcile sessions
+  if (!sessionsResult.error && sessionsResult.data) {
+    const mappedRemote: SessionRow[] = sessionsResult.data.map(
+      (r: Record<string, unknown>) => ({
+        id: r.id as string,
+        user_id: r.user_id as string,
+        started_at: r.started_at as number,
+        ended_at: (r.ended_at as number | null) ?? null,
+        updated_at: r.updated_at as string,
+        deleted_at: (r.deleted_at as string | null) ?? null,
+      })
     );
+
+    const localRows = await localMirror.loadRawSessions();
+    const result = reconcile(localRows, mappedRemote);
+
+    for (const row of result.writes) {
+      await localMirror.writeSession(row);
+    }
+
+    if (result.enqueues.length > 0) {
+      const userId = await currentUserId();
+      if (userId) {
+        for (const row of result.enqueues) {
+          await queue.enqueue({
+            id: genId(),
+            table: "sessions",
+            row: {
+              id: row.id,
+              user_id: userId,
+              started_at: row.started_at,
+              ended_at: row.ended_at,
+              updated_at: row.updated_at,
+              deleted_at: row.deleted_at,
+            },
+            enqueuedAt: new Date().toISOString(),
+          });
+        }
+      }
+    }
+
+    for (const r of mappedRemote) {
+      if (!maxUpdatedAt || r.updated_at > maxUpdatedAt) {
+        maxUpdatedAt = r.updated_at;
+      }
+    }
+  }
+
+  if (maxUpdatedAt && maxUpdatedAt !== lastPulledAt) {
     await localMirror.saveLastPulledAt(maxUpdatedAt);
   }
 
   void queue.drain(handleMutation);
 
-  return localMirror.loadUserSettings();
+  const userSettings = await localMirror.loadUserSettings();
+  const sessions = await localMirror.loadSessions();
+  return { userSettings, sessions };
+}
+
+export async function loadState(): Promise<PersistedState> {
+  const userSettings = await localMirror.loadUserSettings();
+  const sessionRows = await localMirror.loadSessions();
+
+  const sessions: Session[] = sessionRows.map((r) => ({
+    id: r.id,
+    startedAt: r.started_at,
+    endedAt: r.ended_at,
+    sessionExercises: [],
+  }));
+
+  const active = sessions.find((s) => s.endedAt === null) ?? null;
+  const history = sessions.filter((s) => s.endedAt !== null);
+
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    activeSession: active,
+    history,
+    restDurationMs: userSettings?.rest_duration_ms ?? DEFAULT_REST_DURATION_MS,
+  };
 }
 
 export async function signIn(
   email: string,
   password: string,
-  seedRestDurationMs?: number
+  seedState?: { restDurationMs: number; sessions: Session[] }
 ): Promise<{
   error: { message: string } | null;
   userSettings: UserSettingsRow | null;
+  sessions: SessionRow[];
 }> {
   if (!supabase) {
-    return { error: { message: "Supabase not configured" }, userSettings: null };
+    return {
+      error: { message: "Supabase not configured" },
+      userSettings: null,
+      sessions: [],
+    };
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email: email.trim(),
     password,
   });
-  if (error) return { error: { message: error.message }, userSettings: null };
+  if (error)
+    return { error: { message: error.message }, userSettings: null, sessions: [] };
 
   const userId = data.user.id;
 
-  // Seed local mirror if empty (preserves existing restDurationMs through upgrade).
   const existing = await localMirror.loadRawUserSettings();
-  if (!existing && seedRestDurationMs !== undefined) {
+  if (!existing && seedState !== undefined) {
     const now = new Date().toISOString();
     await localMirror.writeUserSettings({
       id: userId,
-      rest_duration_ms: seedRestDurationMs,
+      rest_duration_ms: seedState.restDurationMs,
       updated_at: now,
       deleted_at: null,
     });
+  }
+
+  // Seed sessions from local persistence on first sign-in.
+  if (seedState !== undefined) {
+    const existingSessions = await localMirror.loadRawSessions();
+    if (existingSessions.length === 0 && seedState.sessions.length > 0) {
+      const now = new Date().toISOString();
+      for (const s of seedState.sessions) {
+        await localMirror.writeSession({
+          id: s.id,
+          user_id: userId,
+          started_at: s.startedAt,
+          ended_at: s.endedAt,
+          updated_at: now,
+          deleted_at: null,
+        });
+      }
+    }
   }
 
   if (queue.isPaused()) {
@@ -167,8 +352,8 @@ export async function signIn(
     setSyncPaused(false);
   }
 
-  const userSettings = await pull();
-  return { error: null, userSettings };
+  const pulled = await pull();
+  return { error: null, userSettings: pulled.userSettings, sessions: pulled.sessions };
 }
 
 export async function signUp(
@@ -193,7 +378,7 @@ export async function signOut(): Promise<void> {
 }
 
 export function onAuthStateChanged(
-  callback: (event: AuthChangeEvent, session: Session | null) => void
+  callback: (event: AuthChangeEvent, session: SupabaseSession | null) => void
 ): () => void {
   if (!supabase) return () => {};
 
@@ -201,7 +386,7 @@ export function onAuthStateChanged(
   return () => sub.subscription.unsubscribe();
 }
 
-export async function getSession(): Promise<Session | null> {
+export async function getSession(): Promise<SupabaseSession | null> {
   if (!supabase) return null;
   const {
     data: { session },

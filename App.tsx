@@ -11,6 +11,7 @@ import { SignInScreen } from "./src/screens/SignInScreen";
 import { SignUpScreen } from "./src/screens/SignUpScreen";
 import { VerifyEmailScreen } from "./src/screens/VerifyEmailScreen";
 import { initialState, workoutStore } from "./src/store/workoutStore";
+import { DEFAULT_REST_DURATION_MS } from "./src/types";
 import { loadState } from "./src/persistence/persistence";
 import { supabase, supabaseConfigError } from "./src/supabase/supabaseClient";
 import { extractAuthCode } from "./src/supabase/authUtils";
@@ -32,16 +33,40 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([loadState(), syncEngine.loadUserSettings()]).then(
-      ([oldState, userSettings]) => {
+    Promise.all([loadState(), syncEngine.loadState()]).then(
+      ([oldState, syncState]) => {
         if (cancelled) return;
-        const base = oldState ?? (userSettings !== null ? initialState : null);
+        const hasSyncData =
+          syncState.restDurationMs !== DEFAULT_REST_DURATION_MS ||
+          syncState.history.length > 0 ||
+          syncState.activeSession !== null;
+        const base = oldState ?? (hasSyncData ? initialState : null);
         if (base !== null) {
-          workoutStore.getState().hydrate(
-            userSettings !== null
-              ? { ...base, restDurationMs: userSettings.rest_duration_ms }
-              : base
-          );
+          const merged = { ...base };
+          if (hasSyncData) {
+            merged.restDurationMs = syncState.restDurationMs;
+          }
+          // Sessions from sync mirror take precedence; exercises/sets
+          // still come from persistence until slices 5-6.
+          if (syncState.history.length > 0 || syncState.activeSession !== null) {
+            const exerciseMap = new Map<string, typeof base.history[number]["sessionExercises"]>();
+            for (const s of [...base.history, ...(base.activeSession ? [base.activeSession] : [])]) {
+              exerciseMap.set(s.id, s.sessionExercises);
+            }
+            merged.history = syncState.history.map((s) => ({
+              ...s,
+              sessionExercises: exerciseMap.get(s.id) ?? s.sessionExercises,
+            }));
+            if (syncState.activeSession) {
+              merged.activeSession = {
+                ...syncState.activeSession,
+                sessionExercises:
+                  exerciseMap.get(syncState.activeSession.id) ??
+                  syncState.activeSession.sessionExercises,
+              };
+            }
+          }
+          workoutStore.getState().hydrate(merged);
         }
         setHydrated(true);
       }
@@ -91,11 +116,42 @@ export default function App() {
   useEffect(() => {
     const sub = AppState.addEventListener("change", (nextState) => {
       if (nextState === "active" && session !== null) {
-        void syncEngine.pull().then((settings) => {
-          if (!settings) return;
+        void syncEngine.pull().then((pulled) => {
           const store = workoutStore.getState();
-          if (store.restDurationMs !== settings.rest_duration_ms) {
-            workoutStore.setState({ restDurationMs: settings.rest_duration_ms });
+          if (
+            pulled.userSettings &&
+            store.restDurationMs !== pulled.userSettings.rest_duration_ms
+          ) {
+            workoutStore.setState({
+              restDurationMs: pulled.userSettings.rest_duration_ms,
+            });
+          }
+          if (pulled.sessions.length > 0) {
+            const exerciseMap = new Map<string, typeof store.history[number]["sessionExercises"]>();
+            for (const s of [
+              ...store.history,
+              ...(store.activeSession ? [store.activeSession] : []),
+            ]) {
+              exerciseMap.set(s.id, s.sessionExercises);
+            }
+            const history = pulled.sessions
+              .filter((r) => r.ended_at !== null)
+              .map((r) => ({
+                id: r.id,
+                startedAt: r.started_at,
+                endedAt: r.ended_at,
+                sessionExercises: exerciseMap.get(r.id) ?? [],
+              }));
+            const activeRow = pulled.sessions.find((r) => r.ended_at === null);
+            const activeSession = activeRow
+              ? {
+                  id: activeRow.id,
+                  startedAt: activeRow.started_at,
+                  endedAt: activeRow.ended_at,
+                  sessionExercises: exerciseMap.get(activeRow.id) ?? [],
+                }
+              : store.activeSession;
+            workoutStore.setState({ history, activeSession });
           }
         });
       }
