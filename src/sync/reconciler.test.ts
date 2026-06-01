@@ -1,5 +1,5 @@
 import { reconcile } from "./reconciler";
-import { SyncableRow, SessionRow } from "./types";
+import { SyncableRow, SessionRow, SetRow } from "./types";
 
 type TestRow = SyncableRow & { value: number };
 
@@ -238,5 +238,100 @@ describe("reconciler — sessions integration", () => {
 
     expect(result.writes).toEqual(remote);
     expect(result.enqueues).toEqual([]);
+  });
+});
+
+describe("reconciler — sets integration", () => {
+  function setRow(
+    id: string,
+    updated_at: string,
+    session_exercise_id: string,
+    set_number: number,
+    reps: number,
+    weight: number,
+    deleted_at: string | null = null
+  ): SetRow {
+    return { id, user_id: "u1", updated_at, deleted_at, session_exercise_id, set_number, reps, weight };
+  }
+
+  it("seeds local sets to remote when remote is empty", () => {
+    const local = [
+      setRow("set1", "2026-06-01T00:00:00.000Z", "se1", 1, 8, 80),
+      setRow("set2", "2026-06-01T00:01:00.000Z", "se1", 2, 6, 85),
+    ];
+    const result = reconcile(local, []);
+
+    expect(result.writes).toEqual([]);
+    expect(result.enqueues).toEqual(local);
+  });
+
+  it("hydrates remote sets into empty local", () => {
+    const remote = [
+      setRow("set1", "2026-06-01T00:00:00.000Z", "se1", 1, 8, 80),
+    ];
+    const result = reconcile([], remote);
+
+    expect(result.writes).toEqual(remote);
+    expect(result.enqueues).toEqual([]);
+  });
+
+  it("merges sets with mixed newer/older timestamps", () => {
+    const localSet1 = setRow("set1", "2026-06-01T00:00:00.000Z", "se1", 1, 8, 80);
+    const localSet2 = setRow("set2", "2026-06-01T02:00:00.000Z", "se1", 2, 6, 85);
+    const remoteSet1 = setRow("set1", "2026-06-01T01:00:00.000Z", "se1", 1, 10, 80);
+    const remoteSet3 = setRow("set3", "2026-06-01T00:00:00.000Z", "se1", 3, 5, 90);
+
+    const result = reconcile([localSet1, localSet2], [remoteSet1, remoteSet3]);
+
+    expect(result.writes).toEqual([remoteSet1, remoteSet3]);
+    expect(result.enqueues).toEqual([localSet2]);
+  });
+
+  it("tombstone newer than edit: remote tombstone overwrites local edit", () => {
+    const local = [setRow("set1", "2026-06-01T00:00:00.000Z", "se1", 1, 8, 80)];
+    const remote = [
+      setRow("set1", "2026-06-01T01:00:00.000Z", "se1", 1, 8, 80, "2026-06-01T01:00:00.000Z"),
+    ];
+
+    const result = reconcile(local, remote);
+
+    expect(result.writes).toEqual(remote);
+    expect(result.enqueues).toEqual([]);
+  });
+
+  it("edit newer than tombstone: remote edit resurrects local tombstone", () => {
+    const local = [
+      setRow("set1", "2026-06-01T00:00:00.000Z", "se1", 1, 8, 80, "2026-06-01T00:00:00.000Z"),
+    ];
+    const remote = [setRow("set1", "2026-06-01T01:00:00.000Z", "se1", 1, 10, 82.5)];
+
+    const result = reconcile(local, remote);
+
+    expect(result.writes).toEqual(remote);
+    expect(result.enqueues).toEqual([]);
+  });
+
+  it("local tombstone newer than remote edit: local tombstone enqueued for upload", () => {
+    const local = [
+      setRow("set1", "2026-06-01T02:00:00.000Z", "se1", 1, 8, 80, "2026-06-01T02:00:00.000Z"),
+    ];
+    const remote = [setRow("set1", "2026-06-01T01:00:00.000Z", "se1", 1, 10, 82.5)];
+
+    const result = reconcile(local, remote);
+
+    expect(result.writes).toEqual([]);
+    expect(result.enqueues).toEqual(local);
+  });
+
+  it("local edit newer than remote tombstone: local edit resurrects and enqueued for upload", () => {
+    const local = [setRow("set1", "2026-06-01T02:00:00.000Z", "se1", 1, 10, 85)];
+    const remote = [
+      setRow("set1", "2026-06-01T01:00:00.000Z", "se1", 1, 8, 80, "2026-06-01T01:00:00.000Z"),
+    ];
+
+    const result = reconcile(local, remote);
+
+    expect(result.writes).toEqual([]);
+    expect(result.enqueues).toEqual(local);
   });
 });

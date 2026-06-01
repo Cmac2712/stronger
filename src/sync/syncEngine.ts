@@ -5,9 +5,9 @@ import { createMutationQueue } from "./mutationQueue";
 import * as localMirror from "./localMirror";
 import { setSyncPaused } from "./syncStatus";
 import { genId } from "../util/id";
-import { UserSettingsRow, SessionRow, SessionExerciseRow, Mutation, SyncableRow } from "./types";
+import { UserSettingsRow, SessionRow, SessionExerciseRow, SetRow, Mutation, SyncableRow } from "./types";
 import type { PersistedState, Session } from "../types";
-import { SCHEMA_VERSION, DEFAULT_REST_DURATION_MS } from "../types";
+import { DEFAULT_REST_DURATION_MS } from "../types";
 
 const queue = createMutationQueue({
   onPause: () => {
@@ -69,6 +69,24 @@ function buildSessionExerciseMutation(
       session_id: row.session_id,
       exercise_id: row.exercise_id,
       order: row.order,
+      updated_at: row.updated_at,
+      deleted_at: row.deleted_at,
+    },
+    enqueuedAt: new Date().toISOString(),
+  };
+}
+
+function buildSetMutation(userId: string, row: SetRow): Mutation {
+  return {
+    id: genId(),
+    table: "sets",
+    row: {
+      id: row.id,
+      user_id: userId,
+      session_exercise_id: row.session_exercise_id,
+      set_number: row.set_number,
+      reps: row.reps,
+      weight: row.weight,
       updated_at: row.updated_at,
       deleted_at: row.deleted_at,
     },
@@ -243,6 +261,55 @@ export async function tombstoneSessionExercise(
   void queue.drain(handleMutation);
 }
 
+export async function upsertSet(
+  s: { id: string; sessionExerciseId: string; setNumber: number; reps: number; weight: number }
+): Promise<void> {
+  if (!supabase) return;
+
+  const userId = await currentUserId();
+  if (!userId) return;
+
+  const row: SetRow = {
+    id: s.id,
+    user_id: userId,
+    session_exercise_id: s.sessionExerciseId,
+    set_number: s.setNumber,
+    reps: s.reps,
+    weight: s.weight,
+    updated_at: new Date().toISOString(),
+    deleted_at: null,
+  };
+
+  await localMirror.writeSet(row);
+  await queue.enqueue(buildSetMutation(userId, row));
+  void queue.drain(handleMutation);
+}
+
+export async function tombstoneSet(setId: string): Promise<void> {
+  if (!supabase) return;
+
+  const userId = await currentUserId();
+  if (!userId) return;
+
+  const now = new Date().toISOString();
+  const rows = await localMirror.loadRawSets();
+  const existing = rows.find((r) => r.id === setId);
+  const row: SetRow = {
+    id: setId,
+    user_id: userId,
+    session_exercise_id: existing?.session_exercise_id ?? "",
+    set_number: existing?.set_number ?? 0,
+    reps: existing?.reps ?? 0,
+    weight: existing?.weight ?? 0,
+    updated_at: now,
+    deleted_at: now,
+  };
+
+  await localMirror.writeSet(row);
+  await queue.enqueue(buildSetMutation(userId, row));
+  void queue.drain(handleMutation);
+}
+
 export async function loadUserSettings(): Promise<UserSettingsRow | null> {
   return localMirror.loadUserSettings();
 }
@@ -251,8 +318,9 @@ export async function pull(): Promise<{
   userSettings: UserSettingsRow | null;
   sessions: SessionRow[];
   sessionExercises: SessionExerciseRow[];
+  sets: SetRow[];
 }> {
-  if (!supabase) return { userSettings: null, sessions: [], sessionExercises: [] };
+  if (!supabase) return { userSettings: null, sessions: [], sessionExercises: [], sets: [] };
 
   const lastPulledAt = await localMirror.loadLastPulledAt();
 
@@ -262,10 +330,11 @@ export async function pull(): Promise<{
     return q;
   };
 
-  const [settingsResult, sessionsResult, sessionExercisesResult] = await Promise.all([
+  const [settingsResult, sessionsResult, sessionExercisesResult, setsResult] = await Promise.all([
     sinceCursor("user_settings"),
     sinceCursor("sessions"),
     sinceCursor("session_exercises"),
+    sinceCursor("sets"),
   ]);
 
   let maxUpdatedAt = lastPulledAt;
@@ -326,6 +395,25 @@ export async function pull(): Promise<{
     )
   );
 
+  advanceMax(
+    await reconcileFetched<SetRow>(
+      setsResult,
+      (r) => ({
+        id: r.id as string,
+        user_id: r.user_id as string,
+        session_exercise_id: r.session_exercise_id as string,
+        set_number: r.set_number as number,
+        reps: r.reps as number,
+        weight: r.weight as number,
+        updated_at: r.updated_at as string,
+        deleted_at: (r.deleted_at as string | null) ?? null,
+      }),
+      localMirror.loadRawSets,
+      localMirror.writeSet,
+      buildSetMutation
+    )
+  );
+
   if (maxUpdatedAt && maxUpdatedAt !== lastPulledAt) {
     await localMirror.saveLastPulledAt(maxUpdatedAt);
   }
@@ -335,13 +423,22 @@ export async function pull(): Promise<{
   const userSettings = await localMirror.loadUserSettings();
   const sessions = await localMirror.loadSessions();
   const sessionExercises = await localMirror.loadSessionExercises();
-  return { userSettings, sessions, sessionExercises };
+  const sets = await localMirror.loadSets();
+  return { userSettings, sessions, sessionExercises, sets };
 }
 
 export async function loadState(): Promise<PersistedState> {
   const userSettings = await localMirror.loadUserSettings();
   const sessionRows = await localMirror.loadSessions();
   const exerciseRows = await localMirror.loadSessionExercises();
+  const setRows = await localMirror.loadSets();
+
+  const setsByExercise = new Map<string, SetRow[]>();
+  for (const row of setRows) {
+    const list = setsByExercise.get(row.session_exercise_id) ?? [];
+    list.push(row);
+    setsByExercise.set(row.session_exercise_id, list);
+  }
 
   const exercisesBySession = new Map<string, SessionExerciseRow[]>();
   for (const row of exerciseRows) {
@@ -357,12 +454,21 @@ export async function loadState(): Promise<PersistedState> {
       id: r.id,
       startedAt: r.started_at,
       endedAt: r.ended_at,
-      sessionExercises: seRows.map((se) => ({
-        id: se.id,
-        exerciseId: se.exercise_id,
-        order: se.order,
-        sets: [],
-      })),
+      sessionExercises: seRows.map((se) => {
+        const sRows = setsByExercise.get(se.id) ?? [];
+        sRows.sort((a, b) => a.set_number - b.set_number);
+        return {
+          id: se.id,
+          exerciseId: se.exercise_id,
+          order: se.order,
+          sets: sRows.map((s) => ({
+            id: s.id,
+            setNumber: s.set_number,
+            reps: s.reps,
+            weight: s.weight,
+          })),
+        };
+      }),
     };
   });
 
@@ -370,7 +476,6 @@ export async function loadState(): Promise<PersistedState> {
   const history = sessions.filter((s) => s.endedAt !== null);
 
   return {
-    schemaVersion: SCHEMA_VERSION,
     activeSession: active,
     history,
     restDurationMs: userSettings?.rest_duration_ms ?? DEFAULT_REST_DURATION_MS,
@@ -386,6 +491,7 @@ export async function signIn(
   userSettings: UserSettingsRow | null;
   sessions: SessionRow[];
   sessionExercises: SessionExerciseRow[];
+  sets: SetRow[];
 }> {
   if (!supabase) {
     return {
@@ -393,6 +499,7 @@ export async function signIn(
       userSettings: null,
       sessions: [],
       sessionExercises: [],
+      sets: [],
     };
   }
 
@@ -401,7 +508,7 @@ export async function signIn(
     password,
   });
   if (error)
-    return { error: { message: error.message }, userSettings: null, sessions: [], sessionExercises: [] };
+    return { error: { message: error.message }, userSettings: null, sessions: [], sessionExercises: [], sets: [] };
 
   const userId = data.user.id;
 
@@ -416,7 +523,7 @@ export async function signIn(
     });
   }
 
-  // Seed sessions and session exercises from local persistence on first sign-in.
+  // Seed sessions, exercises, and sets from local state on first sign-in.
   if (seedState !== undefined) {
     const existingSessions = await localMirror.loadRawSessions();
     if (existingSessions.length === 0 && seedState.sessions.length > 0) {
@@ -440,6 +547,18 @@ export async function signIn(
             updated_at: now,
             deleted_at: null,
           });
+          for (const set of se.sets) {
+            await localMirror.writeSet({
+              id: set.id,
+              user_id: userId,
+              session_exercise_id: se.id,
+              set_number: set.setNumber,
+              reps: set.reps,
+              weight: set.weight,
+              updated_at: now,
+              deleted_at: null,
+            });
+          }
         }
       }
     }
@@ -456,6 +575,7 @@ export async function signIn(
     userSettings: pulled.userSettings,
     sessions: pulled.sessions,
     sessionExercises: pulled.sessionExercises,
+    sets: pulled.sets,
   };
 }
 

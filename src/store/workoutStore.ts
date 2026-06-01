@@ -3,13 +3,11 @@ import { useStore } from "zustand";
 import {
   DEFAULT_REST_DURATION_MS,
   PersistedState,
-  SCHEMA_VERSION,
   Session,
   SessionExercise,
   Set,
 } from "../types";
 import { genId } from "../util/id";
-import { saveState } from "../persistence/persistence";
 import {
   RestTimer,
   startRest,
@@ -30,6 +28,9 @@ type OnSessionExerciseAdd = (se: {
   order: number;
 }) => void;
 type OnSessionExerciseRemove = (sessionExerciseId: string) => void;
+type OnSetLog = (set: { id: string; sessionExerciseId: string; setNumber: number; reps: number; weight: number }) => void;
+type OnSetUpdate = (set: { id: string; sessionExerciseId: string; setNumber: number; reps: number; weight: number }) => void;
+type OnSetDelete = (setId: string) => void;
 
 export type SessionSummary = {
   id: string;
@@ -88,7 +89,6 @@ export type WorkoutActions = {
 export type WorkoutStore = WorkoutState & { restTimer: RestTimer } & WorkoutActions;
 
 export const initialState: WorkoutState = {
-  schemaVersion: SCHEMA_VERSION,
   activeSession: null,
   history: [],
   restDurationMs: DEFAULT_REST_DURATION_MS,
@@ -128,18 +128,13 @@ function allSessions(state: WorkoutState): Session[] {
 
 function snapshot(state: WorkoutState): PersistedState {
   return {
-    schemaVersion: state.schemaVersion,
     activeSession: state.activeSession,
     history: state.history,
     restDurationMs: state.restDurationMs,
   };
 }
 
-const defaultPersist: Persist = (state) => {
-  void saveState(state).catch(() => {
-    // Persistence failures are non-fatal for an in-progress session.
-  });
-};
+const defaultPersist: Persist = () => {};
 
 const defaultOnRestDurationChange: OnRestDurationChange = (durationMs) => {
   const syncEngine = require("../sync/syncEngine");
@@ -161,12 +156,30 @@ const defaultOnSessionExerciseRemove: OnSessionExerciseRemove = (id) => {
   void syncEngine.tombstoneSessionExercise(id).catch(() => {});
 };
 
+const defaultOnSetLog: OnSetLog = (s) => {
+  const syncEngine = require("../sync/syncEngine");
+  void syncEngine.upsertSet(s).catch(() => {});
+};
+
+const defaultOnSetUpdate: OnSetUpdate = (s) => {
+  const syncEngine = require("../sync/syncEngine");
+  void syncEngine.upsertSet(s).catch(() => {});
+};
+
+const defaultOnSetDelete: OnSetDelete = (id) => {
+  const syncEngine = require("../sync/syncEngine");
+  void syncEngine.tombstoneSet(id).catch(() => {});
+};
+
 export function createWorkoutStore(
   persist: Persist = defaultPersist,
   onRestDurationChange: OnRestDurationChange = defaultOnRestDurationChange,
   onSessionChange: OnSessionChange = defaultOnSessionChange,
   onSessionExerciseAdd: OnSessionExerciseAdd = defaultOnSessionExerciseAdd,
-  onSessionExerciseRemove: OnSessionExerciseRemove = defaultOnSessionExerciseRemove
+  onSessionExerciseRemove: OnSessionExerciseRemove = defaultOnSessionExerciseRemove,
+  onSetLog: OnSetLog = defaultOnSetLog,
+  onSetUpdate: OnSetUpdate = defaultOnSetUpdate,
+  onSetDelete: OnSetDelete = defaultOnSetDelete
 ) {
   return createStore<WorkoutStore>((set, get) => {
     // Apply a state update then persist the resulting snapshot.
@@ -263,15 +276,18 @@ export function createWorkoutStore(
         if (active === null) {
           throw new Error("No active session");
         }
+        const newSetId = genId();
+        let newSetNumber = 0;
         const sessionExercises = active.sessionExercises.map((se) => {
           if (se.id !== sessionExerciseId) return se;
+          newSetNumber = se.sets.length + 1;
           return {
             ...se,
             sets: [
               ...se.sets,
               {
-                id: genId(),
-                setNumber: se.sets.length + 1,
+                id: newSetId,
+                setNumber: newSetNumber,
                 reps,
                 weight,
               },
@@ -282,8 +298,13 @@ export function createWorkoutStore(
           ...get(),
           activeSession: { ...active, sessionExercises },
         });
-        // Logging a set auto-starts the rest countdown so the user never has to
-        // remember to tap "start" while catching their breath.
+        onSetLog({
+          id: newSetId,
+          sessionExerciseId,
+          setNumber: newSetNumber,
+          reps,
+          weight,
+        });
         set({ restTimer: startRest(get().restDurationMs, Date.now()) });
       },
 
@@ -293,14 +314,28 @@ export function createWorkoutStore(
             sets.map((s) => (s.id === setId ? { ...s, ...patch } : s))
           )
         );
+        for (const s of allSessions(get())) {
+          for (const se of s.sessionExercises) {
+            const found = se.sets.find((x) => x.id === setId);
+            if (found) {
+              onSetUpdate({
+                id: found.id,
+                sessionExerciseId: se.id,
+                setNumber: found.setNumber,
+                reps: found.reps,
+                weight: found.weight,
+              });
+              return;
+            }
+          }
+        }
       },
 
       deleteSet: (setId) => {
-        // Siblings keep their setNumber: setNumber is a logged value, not a
-        // derived index, so removal never renumbers the remaining sets.
         commit(
           mapSessionSets(get(), (sets) => sets.filter((s) => s.id !== setId))
         );
+        onSetDelete(setId);
       },
 
       getLastSetFor: (exerciseId) => {

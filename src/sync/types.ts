@@ -21,6 +21,14 @@ export type SessionExerciseRow = SyncableRow & {
   order: number;
 };
 
+export type SetRow = SyncableRow & {
+  user_id: string;
+  session_exercise_id: string;
+  set_number: number;
+  reps: number;
+  weight: number;
+};
+
 export type Mutation = {
   id: string;
   table: string;
