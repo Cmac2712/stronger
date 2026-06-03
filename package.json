@@ -43,7 +43,6 @@
     "react-stately": "^3.39.0",
     "tailwind-variants": "^0.1.20",
     "tailwindcss": "^3.4.17",
-    "yarn": "^1.22.0",
     "zustand": "^5.0.13"
   },
   "devDependencies": {
@@ -57,6 +56,12 @@
     "prettier-plugin-tailwindcss": "^0.5.11",
     "react-server-dom-webpack": "~19.2.4",
     "typescript": "~6.0.3"
+  },
+  "optionalDependencies": {
+    "lightningcss-linux-x64-gnu": "1.32.0"
+  },
+  "overrides": {
+    "lightningcss": "1.32.0"
   },
   "private": true
 }
