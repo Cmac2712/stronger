@@ -57,8 +57,16 @@ function HistoryStackScreen() {
 export function RootNavigator() {
   return (
     <Tab.Navigator screenOptions={{ headerShown: false }}>
-      <Tab.Screen name="Workout" component={WorkoutStackScreen} />
-      <Tab.Screen name="History" component={HistoryStackScreen} />
+      <Tab.Screen
+        name="Workout"
+        component={WorkoutStackScreen}
+        options={{ tabBarButtonTestID: "tab-workout" }}
+      />
+      <Tab.Screen
+        name="History"
+        component={HistoryStackScreen}
+        options={{ tabBarButtonTestID: "tab-history" }}
+      />
     </Tab.Navigator>
   );
 }

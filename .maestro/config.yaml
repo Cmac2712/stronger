@@ -1,0 +1,9 @@
+# Maestro workspace config.
+# Without this, `maestro test .maestro` only scans the top level (non-recursive)
+# and reports "Top-level directories do not contain any Flows", because our flows
+# live in auth/. The globs below are relative to this file.
+#
+# subflows/ is intentionally NOT listed: those are invoked via `runFlow` from
+# other flows, not run standalone, so they should be excluded from discovery.
+flows:
+  - "auth/*.yaml"

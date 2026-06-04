@@ -1,0 +1,34 @@
+# Sign up with a fresh, unique email and assert the "Check your email" screen
+# appears (the screen-check approach — we do not read a real inbox here).
+#
+# Requires the TEST Supabase project to have email confirmation ENABLED, otherwise
+# signUp returns a session immediately and the app skips straight to the main app.
+# Each run creates a new auth user in the test project; prune periodically.
+appId: com.workout.app
+name: Auth · sign up shows verify-email
+tags:
+  - auth
+  - backend
+---
+- runFlow: ../subflows/open-fresh.yaml
+- tapOn:
+    id: "goto-signup"
+- assertVisible: "Create your account"
+# Unique address per run so we never collide with an existing user.
+- evalScript: ${output.email = 'e2e+' + Date.now() + '@example.com'}
+- tapOn:
+    id: "email-input"
+- inputText: ${output.email}
+- tapOn:
+    id: "password-input"
+- inputText: "test123456"
+- tapOn:
+    id: "confirm-password-input"
+- inputText: "test123456"
+- tapOn:
+    id: "signup-submit"
+- extendedWaitUntil:
+    visible:
+      id: "verify-email-screen"
+    timeout: 20000
+- assertVisible: ${output.email}

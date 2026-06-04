@@ -1,0 +1,15 @@
+# Toggling between the sign-in and sign-up screens. No backend required.
+appId: com.workout.app
+name: Auth · navigation toggle
+tags:
+  - auth
+  - no-backend
+---
+- runFlow: ../subflows/open-fresh.yaml
+- assertVisible: "Sign in to continue"
+- tapOn:
+    id: "goto-signup"
+- assertVisible: "Create your account"
+- tapOn:
+    id: "goto-signin"
+- assertVisible: "Sign in to continue"

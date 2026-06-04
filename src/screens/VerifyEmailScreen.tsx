@@ -7,7 +7,7 @@ type Props = {
 
 export function VerifyEmailScreen({ email, onNavigateSignIn }: Props) {
   return (
-    <View className="flex-1 bg-page items-center justify-center p-6">
+    <View testID="verify-email-screen" className="flex-1 bg-page items-center justify-center p-6">
       <View className="w-full max-w-sm">
         <Text className="text-3xl font-bold text-primary mb-1">
           Check your email
@@ -18,7 +18,7 @@ export function VerifyEmailScreen({ email, onNavigateSignIn }: Props) {
           the link. This screen will close automatically once you've verified.
         </Text>
 
-        <Pressable onPress={onNavigateSignIn} className="mt-8 items-center">
+        <Pressable testID="goto-signin" onPress={onNavigateSignIn} className="mt-8 items-center">
           <Text className="text-muted text-sm">
             Back to{" "}
             <Text className="text-primary-accent-text font-semibold">

@@ -1,0 +1,46 @@
+# Client-side sign-up validation (validateSignUp). No backend required — fully
+# deterministic. Covers: empty email, password mismatch, password too short.
+appId: com.workout.app
+name: Auth · sign-up validation
+tags:
+  - auth
+  - no-backend
+---
+- runFlow: ../subflows/open-fresh.yaml
+- tapOn:
+    id: "goto-signup"
+- assertVisible: "Create your account"
+
+# --- empty email ---
+- tapOn:
+    id: "signup-submit"
+- assertVisible:
+    id: "auth-error"
+- assertVisible: "Email is required."
+
+# --- passwords do not match ---
+- tapOn:
+    id: "email-input"
+- inputText: "tester@example.com"
+- tapOn:
+    id: "password-input"
+- inputText: "abcdef"
+- tapOn:
+    id: "confirm-password-input"
+- inputText: "ghijkl"
+- tapOn:
+    id: "signup-submit"
+- assertVisible: "Passwords do not match."
+
+# --- password too short (< 6) ---
+- tapOn:
+    id: "password-input"
+- eraseText
+- inputText: "abc"
+- tapOn:
+    id: "confirm-password-input"
+- eraseText
+- inputText: "abc"
+- tapOn:
+    id: "signup-submit"
+- assertVisible: "Password must be at least 6 characters."

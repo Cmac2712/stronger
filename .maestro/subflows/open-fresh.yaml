@@ -1,0 +1,12 @@
+# Reusable: launch the app with a clean slate and wait for the sign-in screen.
+# Used as the first step of every auth flow so tests never inherit a stale session.
+appId: com.workout.app
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+# tolerate the brief "Loading…" gate while getSession() resolves
+- extendedWaitUntil:
+    visible:
+      id: "signin-submit"
+    timeout: 20000

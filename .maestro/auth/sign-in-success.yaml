@@ -1,0 +1,26 @@
+# Happy path: a pre-confirmed test user signs in and lands on the main app.
+# Requires a seeded user in the TEST Supabase project (see scripts/e2e-seed-user.mjs)
+# and credentials passed via env:
+#   maestro test -e TEST_EMAIL=... -e TEST_PASSWORD=... .maestro/auth/sign-in-success.yaml
+appId: com.workout.app
+name: Auth · sign in success
+tags:
+  - auth
+  - backend
+---
+- runFlow: ../subflows/open-fresh.yaml
+- tapOn:
+    id: "email-input"
+- inputText: ${TEST_EMAIL}
+- tapOn:
+    id: "password-input"
+- inputText: ${TEST_PASSWORD}
+- tapOn:
+    id: "signin-submit"
+# Logged-in landmark: the bottom tabs of RootNavigator.
+- extendedWaitUntil:
+    visible:
+      id: "tab-history"
+    timeout: 20000
+- assertNotVisible:
+    id: "signin-submit"

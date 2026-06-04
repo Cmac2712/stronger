@@ -44,6 +44,7 @@ export function SignInScreen({ onNavigateSignUp }: Props) {
 
         <Text className="text-xs text-secondary mb-1">Email</Text>
         <TextInput
+          testID="email-input"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -58,6 +59,7 @@ export function SignInScreen({ onNavigateSignUp }: Props) {
 
         <Text className="text-xs text-secondary mb-1">Password</Text>
         <TextInput
+          testID="password-input"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -71,10 +73,11 @@ export function SignInScreen({ onNavigateSignUp }: Props) {
         />
 
         {error !== null && (
-          <Text className="text-danger-accent-text text-sm mt-3">{error}</Text>
+          <Text testID="auth-error" className="text-danger-accent-text text-sm mt-3">{error}</Text>
         )}
 
         <Pressable
+          testID="signin-submit"
           onPress={onSubmit}
           disabled={submitting}
           className="bg-primary-accent rounded-control py-4 items-center mt-6"
@@ -85,7 +88,7 @@ export function SignInScreen({ onNavigateSignUp }: Props) {
           </Text>
         </Pressable>
 
-        <Pressable onPress={onNavigateSignUp} className="mt-6 items-center">
+        <Pressable testID="goto-signup" onPress={onNavigateSignUp} className="mt-6 items-center">
           <Text className="text-muted text-sm">
             Don't have an account?{" "}
             <Text className="text-primary-accent-text font-semibold">
