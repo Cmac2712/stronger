@@ -13,6 +13,7 @@
     "e2e": "maestro test .maestro",
     "e2e:smoke": "maestro test --include-tags no-backend .maestro",
     "e2e:seed": "node scripts/e2e-seed-user.mjs",
+    "db:push": "supabase db push",
     "//sandcastle": "npx tsx .sandcastle/main.mts"
   },
   "dependencies": {
@@ -59,6 +60,7 @@
     "jest-expo": "~56.0.4",
     "prettier-plugin-tailwindcss": "^0.5.11",
     "react-server-dom-webpack": "~19.2.4",
+    "supabase": "^2.105.0",
     "typescript": "~6.0.3"
   },
   "optionalDependencies": {

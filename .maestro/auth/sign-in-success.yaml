@@ -15,6 +15,7 @@ tags:
 - tapOn:
     id: "password-input"
 - inputText: ${TEST_PASSWORD}
+- hideKeyboard
 - tapOn:
     id: "signin-submit"
 # Logged-in landmark: the bottom tabs of RootNavigator.

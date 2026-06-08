@@ -28,6 +28,7 @@ tags:
 - tapOn:
     id: "confirm-password-input"
 - inputText: "ghijkl"
+- hideKeyboard # else the keyboard covers the submit button (3 fields push it down)
 - tapOn:
     id: "signup-submit"
 - assertVisible: "Passwords do not match."
@@ -41,6 +42,7 @@ tags:
     id: "confirm-password-input"
 - eraseText
 - inputText: "abc"
+- hideKeyboard
 - tapOn:
     id: "signup-submit"
 - assertVisible: "Password must be at least 6 characters."

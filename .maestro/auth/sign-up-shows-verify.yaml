@@ -25,6 +25,7 @@ tags:
 - tapOn:
     id: "confirm-password-input"
 - inputText: "test123456"
+- hideKeyboard
 - tapOn:
     id: "signup-submit"
 - extendedWaitUntil:

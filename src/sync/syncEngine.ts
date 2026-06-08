@@ -320,6 +320,7 @@ export async function pull(): Promise<{
   sessionExercises: SessionExerciseRow[];
   sets: SetRow[];
 }> {
+  console.log('supabase: ', supabase)
   if (!supabase) return { userSettings: null, sessions: [], sessionExercises: [], sets: [] };
 
   const lastPulledAt = await localMirror.loadLastPulledAt();
@@ -336,6 +337,8 @@ export async function pull(): Promise<{
     sinceCursor("session_exercises"),
     sinceCursor("sets"),
   ]);
+
+  console.log('sessionResult: ', sessionsResult)
 
   let maxUpdatedAt = lastPulledAt;
   const advanceMax = (m: string | null) => {
