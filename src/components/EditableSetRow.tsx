@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import { Set } from "../types";
-import { Stepper } from "./Stepper";
+import { NumericField } from "./NumericField";
+import { formatNumericValue } from "../util/parseNumericInput";
 
 type Props = {
   set: Set;
@@ -9,11 +10,8 @@ type Props = {
   onDelete: () => void;
 };
 
-const REP_STEP = 1;
-const WEIGHT_STEP = 2.5;
-
 // A single logged set row, shared by the active session and history detail.
-// Tap the row to edit (reuses the logging Stepper UI); the ✕ deletes
+// Tap the row to edit (reuses the logging NumericField UI); the ✕ deletes
 // immediately (no confirmation — single-user app, no undo by design).
 export function EditableSetRow({ set, onUpdate, onDelete }: Props) {
   const [editing, setEditing] = useState(false);
@@ -36,17 +34,10 @@ export function EditableSetRow({ set, onUpdate, onDelete }: Props) {
       <View className="bg-card-elevated rounded-surface p-3 my-1">
         <Text className="text-xs text-muted mb-2">Set {set.setNumber}</Text>
         <View className="flex-row justify-around items-end mb-3">
-          <Stepper
-            label="Reps"
-            value={reps}
-            step={REP_STEP}
-            min={0}
-            onChange={setReps}
-          />
-          <Stepper
+          <NumericField label="Reps" value={reps} min={0} onChange={setReps} />
+          <NumericField
             label="Weight"
             value={weight}
-            step={WEIGHT_STEP}
             min={0}
             unit="kg"
             decimal
@@ -74,7 +65,7 @@ export function EditableSetRow({ set, onUpdate, onDelete }: Props) {
         className="flex-1"
       >
         <Text className="text-sm text-secondary">
-          Set {set.setNumber}: {set.reps} reps × {set.weight} kg
+          Set {set.setNumber}: {set.reps} reps × {formatNumericValue(set.weight)} kg
         </Text>
       </Pressable>
       <Pressable

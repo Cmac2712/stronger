@@ -8,6 +8,7 @@ import {
   Set,
 } from "../types";
 import { genId } from "../util/id";
+import { normalizeWeight } from "../util/parseNumericInput";
 import {
   RestTimer,
   startRest,
@@ -271,11 +272,14 @@ export function createWorkoutStore(
         onSessionExerciseRemove(sessionExerciseId);
       },
 
-      logSet: (sessionExerciseId, reps, weight) => {
+      logSet: (sessionExerciseId, reps, rawWeight) => {
         const active = get().activeSession;
         if (active === null) {
           throw new Error("No active session");
         }
+        // Stored weight is always 1 dp so it can never disagree with the
+        // 1-dp display (legacy values may carry 2 dp from the stepper era).
+        const weight = normalizeWeight(rawWeight);
         const newSetId = genId();
         let newSetNumber = 0;
         const sessionExercises = active.sessionExercises.map((se) => {
@@ -308,7 +312,11 @@ export function createWorkoutStore(
         set({ restTimer: startRest(get().restDurationMs, Date.now()) });
       },
 
-      updateSet: (setId, patch) => {
+      updateSet: (setId, rawPatch) => {
+        const patch =
+          rawPatch.weight === undefined
+            ? rawPatch
+            : { ...rawPatch, weight: normalizeWeight(rawPatch.weight) };
         commit(
           mapSessionSets(get(), (sets) =>
             sets.map((s) => (s.id === setId ? { ...s, ...patch } : s))

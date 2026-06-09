@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import { SessionExercise } from "../types";
 import { getById } from "../data/exerciseLibrary";
-import { Stepper } from "./Stepper";
+import { NumericField } from "./NumericField";
 import { EditableSetRow } from "./EditableSetRow";
 
 type Props = {
@@ -18,9 +18,6 @@ type Props = {
   onDeleteSet: (setId: string) => void;
 };
 
-const REP_STEP = 1;
-const WEIGHT_STEP = 2.5;
-
 export function SessionExerciseCard({
   sessionExercise,
   prefill,
@@ -32,6 +29,10 @@ export function SessionExerciseCard({
 }: Props) {
   const [reps, setReps] = useState(prefill?.reps ?? 0);
   const [weight, setWeight] = useState(prefill?.weight ?? 0);
+
+  // Commit guard: an empty set is meaningless, but weight 0 stays valid
+  // (bodyweight movements).
+  const canLog = reps >= 1;
 
   const name =
     getById(sessionExercise.exerciseId)?.name ?? sessionExercise.exerciseId;
@@ -73,11 +74,10 @@ export function SessionExerciseCard({
       )}
 
       <View className="flex-row justify-around items-end mb-3">
-        <Stepper label="Reps" value={reps} step={REP_STEP} min={0} onChange={setReps} />
-        <Stepper
+        <NumericField label="Reps" value={reps} min={0} onChange={setReps} />
+        <NumericField
           label="Weight"
           value={weight}
-          step={WEIGHT_STEP}
           min={0}
           unit="kg"
           decimal
@@ -87,9 +87,17 @@ export function SessionExerciseCard({
 
       <Pressable
         onPress={() => onLogSet(reps, weight)}
-        className="bg-primary-accent rounded-control py-3 items-center"
+        disabled={!canLog}
+        accessibilityState={{ disabled: !canLog }}
+        className={`rounded-control py-3 items-center ${
+          canLog ? "bg-primary-accent" : "bg-card-elevated"
+        }`}
       >
-        <Text className="text-on-accent font-semibold">Log Set</Text>
+        <Text
+          className={`font-semibold ${canLog ? "text-on-accent" : "text-muted"}`}
+        >
+          Log Set
+        </Text>
       </Pressable>
     </View>
   );
