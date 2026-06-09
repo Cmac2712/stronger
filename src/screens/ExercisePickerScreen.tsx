@@ -2,9 +2,11 @@ import { useMemo } from "react";
 import { SectionList, Text, Pressable, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { SearchX } from "lucide-react-native";
 import { getAll, MUSCLE_GROUPS, Exercise, MuscleGroup } from "../data/exerciseLibrary";
 import { workoutStore } from "../store/workoutStore";
 import type { WorkoutStackParamList } from "../navigation/RootNavigator";
+import { Icon } from "../components/Icon";
 
 type Nav = NativeStackNavigationProp<WorkoutStackParamList, "ExercisePicker">;
 
@@ -57,7 +59,8 @@ export function ExercisePickerScreen() {
       )}
       ListEmptyComponent={
         <View className="p-6 items-center">
-          <Text className="text-muted">No exercises</Text>
+          <Icon icon={SearchX} color="muted" size={40} />
+          <Text className="text-muted mt-3">No exercises</Text>
         </View>
       }
     />

@@ -2,9 +2,11 @@ import { useMemo } from "react";
 import { FlatList, View, Text, Pressable } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { History } from "lucide-react-native";
 import { useWorkoutStore, workoutStore } from "../store/workoutStore";
 import type { HistoryStackParamList } from "../navigation/RootNavigator";
 import { formatSessionDate, formatDuration } from "../util/format";
+import { Icon } from "../components/Icon";
 
 type Nav = NativeStackNavigationProp<HistoryStackParamList, "HistoryHome">;
 
@@ -20,7 +22,8 @@ export function HistoryScreen() {
   if (sessions.length === 0) {
     return (
       <View className="flex-1 bg-page items-center justify-center p-6">
-        <Text className="text-lg text-muted">No workouts yet</Text>
+        <Icon icon={History} color="muted" size={48} />
+        <Text className="text-lg text-muted mt-4">No workouts yet</Text>
       </View>
     );
   }

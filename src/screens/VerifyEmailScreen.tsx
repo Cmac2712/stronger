@@ -1,4 +1,5 @@
 import { View, Text, Pressable } from "react-native";
+import { AuthBrandMark } from "../components/AuthBrandMark";
 
 type Props = {
   email: string;
@@ -9,6 +10,7 @@ export function VerifyEmailScreen({ email, onNavigateSignIn }: Props) {
   return (
     <View testID="verify-email-screen" className="flex-1 bg-page items-center justify-center p-6">
       <View className="w-full max-w-sm">
+        <AuthBrandMark />
         <Text className="text-3xl font-bold text-primary mb-1">
           Check your email
         </Text>

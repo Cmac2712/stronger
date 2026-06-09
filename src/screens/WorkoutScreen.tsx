@@ -1,7 +1,7 @@
 import { View, Text, Pressable, ScrollView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Plus, Square, LogOut } from "lucide-react-native";
+import { Plus, Square, LogOut, Dumbbell } from "lucide-react-native";
 import { useWorkoutStore, workoutStore } from "../store/workoutStore";
 import { SessionExerciseCard } from "../components/SessionExerciseCard";
 import { RestTimerBar } from "../components/RestTimerBar";
@@ -30,10 +30,11 @@ export function WorkoutScreen() {
 
       <RestTimerBar />
 
+      {/* Intentionally icon-only: the empty state carries no instructional copy. */}
       {activeSession.sessionExercises.length === 0 && (
-        <Text className="text-sm text-muted mb-4">
-          No exercises yet — tap “Add Exercise” to get started.
-        </Text>
+        <View className="items-center py-10">
+          <Icon icon={Dumbbell} color="muted" size={48} />
+        </View>
       )}
 
       {activeSession.sessionExercises.map((se) => (
