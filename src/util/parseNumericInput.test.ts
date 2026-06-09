@@ -1,4 +1,8 @@
-import { parseNumericInput } from "./parseNumericInput";
+import {
+  parseNumericInput,
+  normalizeWeight,
+  formatNumericValue,
+} from "./parseNumericInput";
 
 describe("parseNumericInput", () => {
   describe("integer mode (reps)", () => {
@@ -36,6 +40,10 @@ describe("parseNumericInput", () => {
       expect(parseNumericInput("77.5", { decimal: true })).toBe(77.5);
     });
 
+    it("preserves a one-decimal value exactly (no grid snap)", () => {
+      expect(parseNumericInput("82.5", { decimal: true })).toBe(82.5);
+    });
+
     it("parses an integer in decimal mode", () => {
       expect(parseNumericInput("80", { decimal: true })).toBe(80);
     });
@@ -48,8 +56,9 @@ describe("parseNumericInput", () => {
       expect(parseNumericInput("60.", { decimal: true })).toBe(60);
     });
 
-    it("rounds to 2 decimal places to avoid float noise", () => {
-      expect(parseNumericInput("77.555", { decimal: true })).toBe(77.56);
+    it("normalises to 1 decimal place so stored equals displayed", () => {
+      expect(parseNumericInput("77.56", { decimal: true })).toBe(77.6);
+      expect(parseNumericInput("77.555", { decimal: true })).toBe(77.6);
     });
 
     it("rejects empty input (preserve prior)", () => {
@@ -62,6 +71,44 @@ describe("parseNumericInput", () => {
 
     it("rejects negatives", () => {
       expect(parseNumericInput("-2.5", { decimal: true })).toBeNull();
+    });
+  });
+
+  describe("normalizeWeight", () => {
+    it("rounds to one decimal place", () => {
+      expect(normalizeWeight(77.56)).toBe(77.6);
+    });
+
+    it("preserves a one-decimal value exactly (no grid snap)", () => {
+      expect(normalizeWeight(82.5)).toBe(82.5);
+    });
+
+    it("preserves whole numbers and zero", () => {
+      expect(normalizeWeight(80)).toBe(80);
+      expect(normalizeWeight(0)).toBe(0);
+    });
+  });
+
+  describe("formatNumericValue", () => {
+    it("shows whole numbers without a decimal", () => {
+      expect(formatNumericValue(80)).toBe("80");
+      expect(formatNumericValue(0)).toBe("0");
+    });
+
+    it("shows fractional values at exactly one decimal", () => {
+      expect(formatNumericValue(82.5)).toBe("82.5");
+    });
+
+    it("never shows two decimals, even for a legacy 2-dp stored value", () => {
+      expect(formatNumericValue(77.56)).toBe("77.6");
+    });
+
+    it("round-trips with parseNumericInput so displayed always equals stored", () => {
+      for (const stored of [0, 5, 60, 77.6, 82.5, 100.1]) {
+        expect(
+          parseNumericInput(formatNumericValue(stored), { decimal: true })
+        ).toBe(stored);
+      }
     });
   });
 });

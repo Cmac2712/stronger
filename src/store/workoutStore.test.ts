@@ -160,6 +160,30 @@ describe("workoutStore", () => {
       expect(exercises[0].sets.map((s) => s.setNumber)).toEqual([1]);
       expect(exercises[1].sets.map((s) => s.setNumber)).toEqual([1, 2]);
     });
+
+    it("stores weight normalised to one decimal place", () => {
+      const store = freshStore();
+      store.getState().startSession();
+      store.getState().addExerciseToSession("bench-press");
+      const seId = store.getState().activeSession!.sessionExercises[0].id;
+
+      store.getState().logSet(seId, 8, 77.56);
+
+      const sets = store.getState().activeSession!.sessionExercises[0].sets;
+      expect(sets[0].weight).toBe(77.6);
+    });
+
+    it("preserves a one-decimal weight exactly (no grid snap)", () => {
+      const store = freshStore();
+      store.getState().startSession();
+      store.getState().addExerciseToSession("bench-press");
+      const seId = store.getState().activeSession!.sessionExercises[0].id;
+
+      store.getState().logSet(seId, 8, 82.5);
+
+      const sets = store.getState().activeSession!.sessionExercises[0].sets;
+      expect(sets[0].weight).toBe(82.5);
+    });
   });
 
   describe("getLastSetFor", () => {
@@ -368,6 +392,21 @@ describe("workoutStore", () => {
         reps: 6,
         weight: 85,
       });
+    });
+
+    it("normalises an updated weight to one decimal place", () => {
+      const store = freshStore();
+      store.getState().startSession();
+      store.getState().addExerciseToSession("bench-press");
+      const seId = store.getState().activeSession!.sessionExercises[0].id;
+      store.getState().logSet(seId, 8, 80);
+      const setId = store.getState().activeSession!.sessionExercises[0].sets[0].id;
+
+      store.getState().updateSet(setId, { weight: 77.56 });
+
+      expect(
+        store.getState().activeSession!.sessionExercises[0].sets[0].weight
+      ).toBe(77.6);
     });
 
     it("updates a set in a historical session without touching siblings or other sessions", () => {
