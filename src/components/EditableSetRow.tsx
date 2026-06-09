@@ -34,11 +34,10 @@ export function EditableSetRow({ set, onUpdate, onDelete }: Props) {
       <View className="bg-card-elevated rounded-surface p-3 my-1">
         <Text className="text-xs text-muted mb-2">Set {set.setNumber}</Text>
         <View className="flex-row justify-around items-end mb-3">
-          <NumericField label="Reps" value={reps} min={0} onChange={setReps} />
+          <NumericField label="Reps" value={reps} onChange={setReps} />
           <NumericField
             label="Weight"
             value={weight}
-            min={0}
             unit="kg"
             decimal
             onChange={setWeight}

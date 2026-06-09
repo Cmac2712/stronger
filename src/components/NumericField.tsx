@@ -9,7 +9,6 @@ import { colors } from "../theme";
 type Props = {
   label: string;
   value: number;
-  min?: number;
   unit?: string;
   // Reps are integer-only (number-pad); weight allows arbitrary decimals
   // (decimal-pad), normalised to one decimal place.
@@ -23,7 +22,6 @@ type Props = {
 export function NumericField({
   label,
   value,
-  min = 0,
   unit,
   decimal = false,
   onChange,
@@ -36,7 +34,8 @@ export function NumericField({
     if (draft === null) return;
     const parsed = parseNumericInput(draft, { decimal });
     // Invalid/empty input is not a confirmation: keep the prior value.
-    if (parsed !== null) onChange(Math.max(min, parsed));
+    // parseNumericInput never returns negatives, so no clamping is needed.
+    if (parsed !== null) onChange(parsed);
     setDraft(null);
   };
 

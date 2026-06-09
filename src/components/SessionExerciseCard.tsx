@@ -8,7 +8,7 @@ import { EditableSetRow } from "./EditableSetRow";
 type Props = {
   sessionExercise: SessionExercise;
   // Most recent set for this exercise (from getLastSetFor), or null if never
-  // performed. Seeds the next-set steppers so confirming an unchanged set is
+  // performed. Seeds the next-set fields so confirming an unchanged set is
   // one tap.
   prefill: { reps: number; weight: number } | null;
   onLogSet: (reps: number, weight: number) => void;
@@ -74,11 +74,10 @@ export function SessionExerciseCard({
       )}
 
       <View className="flex-row justify-around items-end mb-3">
-        <NumericField label="Reps" value={reps} min={0} onChange={setReps} />
+        <NumericField label="Reps" value={reps} onChange={setReps} />
         <NumericField
           label="Weight"
           value={weight}
-          min={0}
           unit="kg"
           decimal
           onChange={setWeight}
