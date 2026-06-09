@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { View, Text, Pressable } from "react-native";
-import { Check, X } from "lucide-react-native";
+import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
+import { Check, Trash2 } from "lucide-react-native";
 import { Set } from "../types";
+import { colors } from "../theme";
 import { NumericField } from "./NumericField";
 import { Icon } from "./Icon";
 
@@ -17,7 +19,8 @@ type Props = {
   prefill?: { reps: number; weight: number } | null;
   // Open row: commit the draft as a new set.
   onCommit?: (reps: number, weight: number) => void;
-  // Logged row: edit a field in place (saves on blur) and delete.
+  // Logged row: edit a field in place (saves on blur) and delete (triggered
+  // by swiping the row left).
   onUpdate?: (patch: { reps?: number; weight?: number }) => void;
   onDelete?: () => void;
 };
@@ -31,7 +34,6 @@ export function SetRowHeader() {
       <Text className="flex-1 text-xs text-muted text-center">Reps</Text>
       <Text className="flex-1 text-xs text-muted text-center">kg</Text>
       <View className="w-11" />
-      <View className="w-8" />
     </View>
   );
 }
@@ -39,8 +41,9 @@ export function SetRowHeader() {
 // The unified [reps] [weight] [✓] row, used both for entering a set and for
 // displaying a logged one. With no committed set this is the open entry row:
 // grey ✓, draft seeded from the previous set, committed on tap. A committed
-// set shows a green ✓ and is corrected by tapping a field in place — there is
-// no separate edit mode.
+// set shows a green ✓, is corrected by tapping a field in place — there is
+// no separate edit mode — and is deleted by swiping the row left (immediate,
+// no confirmation, matching the app's friction-free single-user flow).
 export function SetRow({
   set,
   rowNumber,
@@ -58,7 +61,7 @@ export function SetRow({
   // stays valid (bodyweight movements).
   const canCommit = draftReps >= 1;
 
-  return (
+  const row = (
     <View className="flex-row items-center gap-2 py-1">
       <Text className="w-6 text-sm text-muted text-center">{rowNumber}</Text>
       <View className="flex-1">
@@ -77,37 +80,52 @@ export function SetRow({
         />
       </View>
       {set ? (
-        <>
-          <View
-            className="w-11 h-11 items-center justify-center"
-            accessibilityLabel={`Set ${rowNumber} logged`}
-          >
-            <Icon icon={Check} size={22} color="success" />
-          </View>
-          <Pressable
-            onPress={onDelete}
-            hitSlop={8}
-            accessibilityLabel={`Delete set ${rowNumber}`}
-            className="w-8 h-11 items-center justify-center"
-          >
-            <Icon icon={X} size={18} color="danger-accent-text" />
-          </Pressable>
-        </>
+        <View
+          className="w-11 h-11 items-center justify-center"
+          accessibilityLabel={`Set ${rowNumber} logged`}
+        >
+          <Icon icon={Check} size={22} color="success" />
+        </View>
       ) : (
-        <>
-          <Pressable
-            onPress={() => onCommit?.(draftReps, draftWeight)}
-            disabled={!canCommit}
-            hitSlop={4}
-            accessibilityLabel={`Log set ${rowNumber}`}
-            accessibilityState={{ disabled: !canCommit }}
-            className="w-11 h-11 items-center justify-center"
-          >
-            <Icon icon={Check} size={22} color={canCommit ? "secondary" : "muted"} />
-          </Pressable>
-          <View className="w-8" />
-        </>
+        <Pressable
+          onPress={() => onCommit?.(draftReps, draftWeight)}
+          disabled={!canCommit}
+          hitSlop={4}
+          accessibilityLabel={`Log set ${rowNumber}`}
+          accessibilityState={{ disabled: !canCommit }}
+          className="w-11 h-11 items-center justify-center"
+        >
+          <Icon icon={Check} size={22} color={canCommit ? "secondary" : "muted"} />
+        </Pressable>
       )}
     </View>
+  );
+
+  // The open row has nothing to delete, so only logged rows are swipeable.
+  if (!set) {
+    return row;
+  }
+
+  return (
+    <ReanimatedSwipeable
+      renderRightActions={() => (
+        <View
+          className="w-16 bg-danger items-center justify-center"
+          accessibilityLabel={`Delete set ${rowNumber}`}
+        >
+          <Icon icon={Trash2} size={20} color="on-accent" />
+        </View>
+      )}
+      // Opening the panel IS the delete — no confirmation, no undo.
+      onSwipeableOpen={onDelete}
+      overshootRight={false}
+      friction={2}
+      rightThreshold={40}
+      // The row itself is transparent; an opaque backing stops the danger
+      // panel showing through while it slides.
+      childrenContainerStyle={{ backgroundColor: colors.card }}
+    >
+      {row}
+    </ReanimatedSwipeable>
   );
 }
