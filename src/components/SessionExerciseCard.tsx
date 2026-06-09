@@ -1,15 +1,12 @@
-import { useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import { SessionExercise } from "../types";
 import { getById } from "../data/exerciseLibrary";
-import { NumericField } from "./NumericField";
-import { EditableSetRow } from "./EditableSetRow";
+import { SetRow, SetRowHeader } from "./SetRow";
 
 type Props = {
   sessionExercise: SessionExercise;
   // Most recent set for this exercise (from getLastSetFor), or null if never
-  // performed. Seeds the next-set fields so confirming an unchanged set is
-  // one tap.
+  // performed. Seeds the open row so confirming an unchanged set is one tap.
   prefill: { reps: number; weight: number } | null;
   onLogSet: (reps: number, weight: number) => void;
   onRemove: () => void;
@@ -27,15 +24,9 @@ export function SessionExerciseCard({
   onUpdateSet,
   onDeleteSet,
 }: Props) {
-  const [reps, setReps] = useState(prefill?.reps ?? 0);
-  const [weight, setWeight] = useState(prefill?.weight ?? 0);
-
-  // Commit guard: an empty set is meaningless, but weight 0 stays valid
-  // (bodyweight movements).
-  const canLog = reps >= 1;
-
   const name =
     getById(sessionExercise.exerciseId)?.name ?? sessionExercise.exerciseId;
+  const sets = sessionExercise.sets;
 
   return (
     <View className="bg-card border border-subtle rounded-surface p-4 mb-4">
@@ -58,46 +49,27 @@ export function SessionExerciseCard({
         </Pressable>
       </View>
 
-      {sessionExercise.sets.length === 0 ? (
-        <Text className="text-sm text-muted mb-3">No sets logged yet</Text>
-      ) : (
-        <View className="mb-3">
-          {sessionExercise.sets.map((set) => (
-            <EditableSetRow
-              key={set.id}
-              set={set}
-              onUpdate={(patch) => onUpdateSet(set.id, patch)}
-              onDelete={() => onDeleteSet(set.id)}
-            />
-          ))}
-        </View>
-      )}
+      <SetRowHeader />
 
-      <View className="flex-row justify-around items-end mb-3">
-        <NumericField label="Reps" value={reps} onChange={setReps} />
-        <NumericField
-          label="Weight"
-          value={weight}
-          unit="kg"
-          decimal
-          onChange={setWeight}
+      {sets.map((set) => (
+        <SetRow
+          key={set.id}
+          set={set}
+          rowNumber={set.setNumber}
+          onUpdate={(patch) => onUpdateSet(set.id, patch)}
+          onDelete={() => onDeleteSet(set.id)}
         />
-      </View>
+      ))}
 
-      <Pressable
-        onPress={() => onLogSet(reps, weight)}
-        disabled={!canLog}
-        accessibilityState={{ disabled: !canLog }}
-        className={`rounded-control py-3 items-center ${
-          canLog ? "bg-primary-accent" : "bg-card-elevated"
-        }`}
-      >
-        <Text
-          className={`font-semibold ${canLog ? "text-on-accent" : "text-muted"}`}
-        >
-          Log Set
-        </Text>
-      </Pressable>
+      {/* Keyed by set count so each commit remounts a fresh open row whose
+          draft re-seeds from the now-updated prefill (the set just logged). */}
+      <SetRow
+        key={`open-${sets.length}`}
+        set={null}
+        rowNumber={sets.length + 1}
+        prefill={prefill}
+        onCommit={onLogSet}
+      />
     </View>
   );
 }

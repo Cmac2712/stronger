@@ -9,7 +9,7 @@ import { useWorkoutStore, workoutStore } from "../store/workoutStore";
 import { getById } from "../data/exerciseLibrary";
 import type { HistoryStackParamList } from "../navigation/RootNavigator";
 import { formatSessionDate, formatDuration } from "../util/format";
-import { EditableSetRow } from "../components/EditableSetRow";
+import { SetRow, SetRowHeader } from "../components/SetRow";
 
 type DetailRoute = RouteProp<HistoryStackParamList, "SessionDetail">;
 type Nav = NativeStackNavigationProp<HistoryStackParamList, "SessionDetail">;
@@ -61,16 +61,20 @@ export function SessionDetailScreen() {
             {se.sets.length === 0 ? (
               <Text className="text-sm text-muted">No sets logged</Text>
             ) : (
-              se.sets.map((set) => (
-                <EditableSetRow
-                  key={set.id}
-                  set={set}
-                  onUpdate={(patch) =>
-                    workoutStore.getState().updateSet(set.id, patch)
-                  }
-                  onDelete={() => workoutStore.getState().deleteSet(set.id)}
-                />
-              ))
+              <>
+                <SetRowHeader />
+                {se.sets.map((set) => (
+                  <SetRow
+                    key={set.id}
+                    set={set}
+                    rowNumber={set.setNumber}
+                    onUpdate={(patch) =>
+                      workoutStore.getState().updateSet(set.id, patch)
+                    }
+                    onDelete={() => workoutStore.getState().deleteSet(set.id)}
+                  />
+                ))}
+              </>
             )}
           </View>
         );
