@@ -102,8 +102,9 @@ export const initialState: WorkoutState = {
   restDurationMs: DEFAULT_REST_DURATION_MS,
 };
 
-// Apply fn to every session (active + history). Set edit/delete intentionally
-// make no active/historical distinction — a set is found by id wherever it lives.
+// Apply fn to every session (active + history). Set log/edit/delete
+// intentionally make no active/historical distinction — a set or session
+// exercise is found by id wherever it lives.
 function mapSessions(state: WorkoutState, fn: (s: Session) => Session): WorkoutState {
   return {
     ...state,
@@ -280,55 +281,39 @@ export function createWorkoutStore(
       },
 
       logSet: (sessionExerciseId, reps, rawWeight) => {
-        // Stored weight is always 1 dp so it can never disagree with the
-        // 1-dp display (legacy values may carry 2 dp from the stepper era).
-        const weight = normalizeWeight(rawWeight);
-        const newSetId = genId();
-        let newSetNumber = 0;
-        let inActiveSession = false;
-        // Appending to a session spreads it, so a historical session keeps
-        // its startedAt/endedAt — amending never re-activates.
-        const append = (session: Session, isActive: boolean): Session => ({
-          ...session,
-          sessionExercises: session.sessionExercises.map((se) => {
-            if (se.id !== sessionExerciseId) return se;
-            newSetNumber = nextSetNumber(se.sets);
-            inActiveSession = isActive;
-            return {
-              ...se,
-              sets: [
-                ...se.sets,
-                {
-                  id: newSetId,
-                  setNumber: newSetNumber,
-                  reps,
-                  weight,
-                },
-              ],
-            };
-          }),
-        });
         const state = get();
-        const next: WorkoutState = {
-          ...state,
-          activeSession: state.activeSession
-            ? append(state.activeSession, true)
-            : null,
-          history: state.history.map((s) => append(s, false)),
-        };
-        if (newSetNumber === 0) {
+        const target = allSessions(state)
+          .flatMap((s) => s.sessionExercises)
+          .find((se) => se.id === sessionExerciseId);
+        if (!target) {
           throw new Error(`Unknown session exercise: ${sessionExerciseId}`);
         }
-        commit(next);
-        onSetLog({
-          id: newSetId,
-          sessionExerciseId,
-          setNumber: newSetNumber,
+        const newSet: Set = {
+          id: genId(),
+          setNumber: nextSetNumber(target.sets),
           reps,
-          weight,
-        });
+          // Stored weight is always 1 dp so it can never disagree with the
+          // 1-dp display (legacy values may carry 2 dp from the stepper era).
+          weight: normalizeWeight(rawWeight),
+        };
+        // mapSessions spreads the amended session, so a historical session
+        // keeps its startedAt/endedAt — amending never re-activates.
+        commit(
+          mapSessions(state, (session) => ({
+            ...session,
+            sessionExercises: session.sessionExercises.map((se) =>
+              se.id === sessionExerciseId
+                ? { ...se, sets: [...se.sets, newSet] }
+                : se
+            ),
+          }))
+        );
+        onSetLog({ ...newSet, sessionExerciseId });
         // The rest timer is a live-workout affordance: amending a historical
         // session leaves it untouched.
+        const inActiveSession = state.activeSession?.sessionExercises.some(
+          (se) => se.id === sessionExerciseId
+        );
         if (inActiveSession) {
           set({ restTimer: startRest(get().restDurationMs, Date.now()) });
         }
@@ -397,7 +382,7 @@ export function createWorkoutStore(
           (se) => se.id === sessionExerciseId
         );
         if (activeSe) {
-          return get().getLastSetFor(activeSe.exerciseId) ?? none;
+          return state.getLastSetFor(activeSe.exerciseId) ?? none;
         }
 
         // Historical session: seed from the last set of that exercise within
