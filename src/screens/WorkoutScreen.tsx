@@ -1,12 +1,13 @@
 import { View, Text, Pressable, ScrollView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { Plus, Square, LogOut } from "lucide-react-native";
 import { useWorkoutStore, workoutStore } from "../store/workoutStore";
 import { SessionExerciseCard } from "../components/SessionExerciseCard";
 import { RestTimerBar } from "../components/RestTimerBar";
+import { Icon } from "../components/Icon";
 import * as syncEngine from "../sync/syncEngine";
 import type { WorkoutStackParamList } from "../navigation/RootNavigator";
-import { Button, ButtonText, ButtonGroup, ButtonIcon, ButtonSpinner } from "@/components/ui/button";
 
 type Nav = NativeStackNavigationProp<WorkoutStackParamList, "WorkoutHome">;
 
@@ -58,15 +59,17 @@ export function WorkoutScreen() {
 
       <Pressable
         onPress={() => navigation.navigate("ExercisePicker")}
-        className="bg-primary-accent rounded-control py-4 items-center mt-2"
+        className="bg-primary-accent rounded-control py-4 flex-row items-center justify-center gap-2 mt-2"
       >
+        <Icon icon={Plus} size={18} color="on-accent" />
         <Text className="text-on-accent font-bold text-base">Add Exercise</Text>
       </Pressable>
 
       <Pressable
         onPress={() => workoutStore.getState().endSession()}
-        className="bg-danger rounded-control py-4 items-center mt-3"
+        className="bg-danger rounded-control py-4 flex-row items-center justify-center gap-2 mt-3"
       >
+        <Icon icon={Square} size={18} color="on-accent" />
         <Text className="text-on-accent font-bold text-base">End Workout</Text>
       </Pressable>
 
@@ -79,8 +82,9 @@ function SignOutButton() {
   return (
     <Pressable
       onPress={() => void syncEngine.signOut()}
-      className="py-4 items-center mt-3"
+      className="py-4 flex-row items-center justify-center gap-2 mt-3"
     >
+      <Icon icon={LogOut} size={16} color="muted" />
       <Text className="text-muted font-medium text-sm">Sign Out</Text>
     </Pressable>
   );

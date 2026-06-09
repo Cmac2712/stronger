@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, AppState } from "react-native";
 import * as Haptics from "expo-haptics";
+import { Minus, Plus } from "lucide-react-native";
+import { Icon } from "./Icon";
 import { useWorkoutStore, workoutStore } from "../store/workoutStore";
 import { restRemainingMs, isRestExpired } from "../util/restTimer";
 import { formatRestClock } from "../util/format";
@@ -78,7 +80,7 @@ export function RestTimerBar() {
             accessibilityLabel="Decrease rest duration"
             className="w-8 h-8 rounded-full bg-on-accent/20 items-center justify-center"
           >
-            <Text className="text-on-accent text-lg font-bold">−</Text>
+            <Icon icon={Minus} size={16} color="on-accent" />
           </Pressable>
           <Text className="text-on-accent/80 text-xs mx-2 w-12 text-center">
             {formatRestClock(restDurationMs)}
@@ -89,7 +91,7 @@ export function RestTimerBar() {
             accessibilityLabel="Increase rest duration"
             className="w-8 h-8 rounded-full bg-on-accent/20 items-center justify-center"
           >
-            <Text className="text-on-accent text-lg font-bold">+</Text>
+            <Icon icon={Plus} size={16} color="on-accent" />
           </Pressable>
         </View>
       </View>
