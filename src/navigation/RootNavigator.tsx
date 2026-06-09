@@ -58,10 +58,9 @@ function HistoryStackScreen() {
 }
 
 // The same tokens as tabBarActiveTintColor/tabBarInactiveTintColor below, so
-// icon tint and label tint can never drift apart. (Icon takes a theme token,
-// so we map from `focused` rather than echoing the resolved tint hex back.)
-function tabIconColor(focused: boolean) {
-  return focused ? ("primary-accent-text" as const) : ("muted" as const);
+// icon tint and label tint can never drift apart.
+function tabIconColor(focused: boolean): keyof typeof colors {
+  return focused ? "primary-accent-text" : "muted";
 }
 
 export function RootNavigator() {
