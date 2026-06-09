@@ -1,5 +1,7 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { Dumbbell, History } from "lucide-react-native";
+import { Icon } from "../components/Icon";
 import { WorkoutScreen } from "../screens/WorkoutScreen";
 import { ExercisePickerScreen } from "../screens/ExercisePickerScreen";
 import { HistoryScreen } from "../screens/HistoryScreen";
@@ -55,6 +57,13 @@ function HistoryStackScreen() {
   );
 }
 
+// The same tokens as tabBarActiveTintColor/tabBarInactiveTintColor below, so
+// icon tint and label tint can never drift apart. (Icon takes a theme token,
+// so we map from `focused` rather than echoing the resolved tint hex back.)
+function tabIconColor(focused: boolean) {
+  return focused ? ("primary-accent-text" as const) : ("muted" as const);
+}
+
 export function RootNavigator() {
   return (
     <Tab.Navigator
@@ -70,12 +79,22 @@ export function RootNavigator() {
       <Tab.Screen
         name="Workout"
         component={WorkoutStackScreen}
-        options={{ tabBarButtonTestID: "tab-workout" }}
+        options={{
+          tabBarButtonTestID: "tab-workout",
+          tabBarIcon: ({ focused, size }) => (
+            <Icon icon={Dumbbell} size={size} color={tabIconColor(focused)} />
+          ),
+        }}
       />
       <Tab.Screen
         name="History"
         component={HistoryStackScreen}
-        options={{ tabBarButtonTestID: "tab-history" }}
+        options={{
+          tabBarButtonTestID: "tab-history",
+          tabBarIcon: ({ focused, size }) => (
+            <Icon icon={History} size={size} color={tabIconColor(focused)} />
+          ),
+        }}
       />
     </Tab.Navigator>
   );
