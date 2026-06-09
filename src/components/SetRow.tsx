@@ -54,9 +54,9 @@ export function SetRow({
   const [draftReps, setDraftReps] = useState(prefill?.reps ?? 0);
   const [draftWeight, setDraftWeight] = useState(prefill?.weight ?? 0);
 
-  // Commit guard: an empty set is meaningless, but weight 0 stays valid
-  // (bodyweight movements).
-  const canCommit = set === null && draftReps >= 1;
+  // Commit guard for the open row: an empty set is meaningless, but weight 0
+  // stays valid (bodyweight movements).
+  const canCommit = draftReps >= 1;
 
   return (
     <View className="flex-row items-center gap-2 py-1">
@@ -77,35 +77,36 @@ export function SetRow({
         />
       </View>
       {set ? (
-        <View
-          className="w-11 h-11 items-center justify-center"
-          accessibilityLabel={`Set ${rowNumber} logged`}
-        >
-          <Icon icon={Check} size={22} color="success" />
-        </View>
+        <>
+          <View
+            className="w-11 h-11 items-center justify-center"
+            accessibilityLabel={`Set ${rowNumber} logged`}
+          >
+            <Icon icon={Check} size={22} color="success" />
+          </View>
+          <Pressable
+            onPress={onDelete}
+            hitSlop={8}
+            accessibilityLabel={`Delete set ${rowNumber}`}
+            className="w-8 h-11 items-center justify-center"
+          >
+            <Icon icon={X} size={18} color="danger-accent-text" />
+          </Pressable>
+        </>
       ) : (
-        <Pressable
-          onPress={() => onCommit?.(draftReps, draftWeight)}
-          disabled={!canCommit}
-          hitSlop={4}
-          accessibilityLabel={`Log set ${rowNumber}`}
-          accessibilityState={{ disabled: !canCommit }}
-          className="w-11 h-11 items-center justify-center"
-        >
-          <Icon icon={Check} size={22} color={canCommit ? "secondary" : "muted"} />
-        </Pressable>
-      )}
-      {set ? (
-        <Pressable
-          onPress={onDelete}
-          hitSlop={8}
-          accessibilityLabel={`Delete set ${rowNumber}`}
-          className="w-8 h-11 items-center justify-center"
-        >
-          <Icon icon={X} size={18} color="danger-accent-text" />
-        </Pressable>
-      ) : (
-        <View className="w-8" />
+        <>
+          <Pressable
+            onPress={() => onCommit?.(draftReps, draftWeight)}
+            disabled={!canCommit}
+            hitSlop={4}
+            accessibilityLabel={`Log set ${rowNumber}`}
+            accessibilityState={{ disabled: !canCommit }}
+            className="w-11 h-11 items-center justify-center"
+          >
+            <Icon icon={Check} size={22} color={canCommit ? "secondary" : "muted"} />
+          </Pressable>
+          <View className="w-8" />
+        </>
       )}
     </View>
   );
