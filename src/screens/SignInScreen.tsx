@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { View, Text, TextInput, Pressable } from "react-native";
-import { Dumbbell, Eye, EyeOff, Lock, Mail } from "lucide-react-native";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react-native";
 import * as syncEngine from "../sync/syncEngine";
 import { workoutStore } from "../store/workoutStore";
+import { AuthBrandMark } from "../components/AuthBrandMark";
 import { Icon } from "../components/Icon";
 import { colors } from "../theme";
 
@@ -42,9 +43,7 @@ export function SignInScreen({ onNavigateSignUp }: Props) {
   return (
     <View className="flex-1 bg-page items-center justify-center p-6">
       <View className="w-full max-w-sm">
-        <View className="mb-4">
-          <Icon icon={Dumbbell} color="primary-accent-text" size={40} />
-        </View>
+        <AuthBrandMark />
         <Text className="text-3xl font-bold text-primary mb-1">Stronger</Text>
         <Text className="text-sm text-muted mb-8">Sign in to continue</Text>
 

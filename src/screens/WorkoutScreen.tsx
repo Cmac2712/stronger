@@ -31,7 +31,7 @@ export function WorkoutScreen() {
 
       <RestTimerBar />
 
-      {/* Glyph only — no instructional or coaching copy (PRD non-goal). */}
+      {/* Intentionally icon-only: the empty state carries no instructional copy. */}
       {activeSession.sessionExercises.length === 0 && (
         <View className="items-center py-10">
           <Icon icon={Dumbbell} color="muted" size={48} />
