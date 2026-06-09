@@ -1,4 +1,5 @@
 import Svg, { Polyline, Circle } from "react-native-svg";
+import { colors } from "../theme";
 
 type Props = {
   values: number[];
@@ -17,7 +18,7 @@ export function Sparkline({
   values,
   width,
   height,
-  color = "#60a5fa",
+  color = colors["primary-accent-text"],
   strokeWidth = 2,
 }: Props) {
   if (values.length === 0) return null;

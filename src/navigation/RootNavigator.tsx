@@ -5,6 +5,7 @@ import { ExercisePickerScreen } from "../screens/ExercisePickerScreen";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { SessionDetailScreen } from "../screens/SessionDetailScreen";
 import { ExerciseHistoryScreen } from "../screens/ExerciseHistoryScreen";
+import { colors } from "../theme";
 
 export type WorkoutStackParamList = {
   WorkoutHome: undefined;
@@ -56,7 +57,16 @@ function HistoryStackScreen() {
 
 export function RootNavigator() {
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        // primary-accent-text (not primary-accent) for the active tint: tab
+        // labels/icons are small text on the dark card, where the lighter
+        // text-variant of the blue accent keeps contrast legible.
+        tabBarActiveTintColor: colors["primary-accent-text"],
+        tabBarInactiveTintColor: colors.muted,
+      }}
+    >
       <Tab.Screen
         name="Workout"
         component={WorkoutStackScreen}

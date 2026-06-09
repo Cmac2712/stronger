@@ -66,7 +66,7 @@ export function RestTimerBar() {
       <View className="flex-row items-center justify-between">
         <Text
           className={`text-xs font-semibold ${
-            expired ? "text-green-100" : "text-muted"
+            expired ? "text-on-accent/80" : "text-muted"
           }`}
         >
           REST
@@ -76,26 +76,26 @@ export function RestTimerBar() {
             onPress={() => adjust(-ADJUST_STEP_MS)}
             hitSlop={8}
             accessibilityLabel="Decrease rest duration"
-            className="w-8 h-8 rounded-full bg-white/20 items-center justify-center"
+            className="w-8 h-8 rounded-full bg-on-accent/20 items-center justify-center"
           >
-            <Text className="text-white text-lg font-bold">−</Text>
+            <Text className="text-on-accent text-lg font-bold">−</Text>
           </Pressable>
-          <Text className="text-white/80 text-xs mx-2 w-12 text-center">
+          <Text className="text-on-accent/80 text-xs mx-2 w-12 text-center">
             {formatRestClock(restDurationMs)}
           </Text>
           <Pressable
             onPress={() => adjust(ADJUST_STEP_MS)}
             hitSlop={8}
             accessibilityLabel="Increase rest duration"
-            className="w-8 h-8 rounded-full bg-white/20 items-center justify-center"
+            className="w-8 h-8 rounded-full bg-on-accent/20 items-center justify-center"
           >
-            <Text className="text-white text-lg font-bold">+</Text>
+            <Text className="text-on-accent text-lg font-bold">+</Text>
           </Pressable>
         </View>
       </View>
 
       <Text
-        className="text-white text-5xl font-bold text-center my-2"
+        className="text-on-accent text-5xl font-bold text-center my-2"
         accessibilityLabel={`Rest remaining ${formatRestClock(remaining)}`}
       >
         {expired ? "Rest up!" : formatRestClock(remaining)}
@@ -127,10 +127,10 @@ function TimerButton({
   return (
     <Pressable
       onPress={onPress}
-      className="bg-white/20 rounded-control px-6 py-2 mx-2"
+      className="bg-on-accent/20 rounded-control px-6 py-2 mx-2"
       accessibilityLabel={label}
     >
-      <Text className="text-white font-semibold">{label}</Text>
+      <Text className="text-on-accent font-semibold">{label}</Text>
     </Pressable>
   );
 }
