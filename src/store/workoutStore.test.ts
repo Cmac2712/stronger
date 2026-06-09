@@ -184,6 +184,246 @@ describe("workoutStore", () => {
       const sets = store.getState().activeSession!.sessionExercises[0].sets;
       expect(sets[0].weight).toBe(82.5);
     });
+
+    it("numbers the next set one past the maximum, not the count (gaps from deletion)", () => {
+      const store = freshStore();
+      store.getState().startSession();
+      store.getState().addExerciseToSession("bench-press");
+      const seId = store.getState().activeSession!.sessionExercises[0].id;
+      store.getState().logSet(seId, 8, 80);
+      store.getState().logSet(seId, 8, 80);
+      store.getState().logSet(seId, 6, 85);
+      const middle = store.getState().activeSession!.sessionExercises[0].sets[1];
+      store.getState().deleteSet(middle.id);
+
+      store.getState().logSet(seId, 5, 90);
+
+      const sets = store.getState().activeSession!.sessionExercises[0].sets;
+      // Sets 1 and 3 survive the delete; the new set must be 4, not a second 3.
+      expect(sets.map((s) => s.setNumber)).toEqual([1, 3, 4]);
+    });
+
+    it("throws for an unknown session exercise", () => {
+      const store = freshStore();
+      expect(() => store.getState().logSet("nope", 8, 80)).toThrow();
+    });
+  });
+
+  describe("logSet (historical session)", () => {
+    it("appends a set to a historical session exercise with setNumber one past the max", () => {
+      const store = hydrated([
+        session(1000, "bench-press", [
+          { setNumber: 1, reps: 8, weight: 80 },
+          { setNumber: 2, reps: 6, weight: 85 },
+        ]),
+      ]);
+
+      store.getState().logSet("se-1000", 5, 90);
+
+      const sets = store.getState().history[0].sessionExercises[0].sets;
+      expect(sets).toHaveLength(3);
+      expect(sets[2]).toMatchObject({ setNumber: 3, reps: 5, weight: 90 });
+    });
+
+    it("does not start the rest timer", () => {
+      const store = hydrated([
+        session(1000, "bench-press", [{ setNumber: 1, reps: 8, weight: 80 }]),
+      ]);
+
+      store.getState().logSet("se-1000", 5, 90);
+
+      expect(store.getState().restTimer.status).toBe("idle");
+    });
+
+    it("does not disturb a rest timer already running for the active session", () => {
+      const store = hydrated([
+        session(1000, "bench-press", [{ setNumber: 1, reps: 8, weight: 80 }]),
+      ]);
+      store.getState().startSession();
+      store.getState().startRestTimer(1_000);
+      const before = store.getState().restTimer;
+
+      store.getState().logSet("se-1000", 5, 90);
+
+      expect(store.getState().restTimer).toEqual(before);
+    });
+
+    it("leaves startedAt and endedAt unchanged (no re-activation)", () => {
+      const store = hydrated([
+        session(1000, "bench-press", [{ setNumber: 1, reps: 8, weight: 80 }]),
+      ]);
+
+      store.getState().logSet("se-1000", 5, 90);
+
+      const s = store.getState().history[0];
+      expect(s.startedAt).toBe(1000);
+      expect(s.endedAt).toBe(2000);
+      expect(store.getState().activeSession).toBeNull();
+    });
+
+    it("still starts the rest timer when committing to the active session alongside history", () => {
+      const store = hydrated([
+        session(1000, "bench-press", [{ setNumber: 1, reps: 8, weight: 80 }]),
+      ]);
+      store.getState().startSession();
+      store.getState().addExerciseToSession("bench-press");
+      const seId = store.getState().activeSession!.sessionExercises[0].id;
+
+      store.getState().logSet(seId, 8, 80);
+
+      expect(store.getState().restTimer.status).toBe("running");
+    });
+
+    it("calls onSetLog with the historical session exercise id", () => {
+      const logged: Array<{ id: string; sessionExerciseId: string; setNumber: number; reps: number; weight: number }> = [];
+      const store = createWorkoutStore(noop, noop, noop, noop, noop, (s) => logged.push(s), noop, noop);
+      store.getState().hydrate({
+        activeSession: null,
+        history: [session(1000, "bench-press", [{ setNumber: 1, reps: 8, weight: 80 }])],
+        restDurationMs: 120_000,
+      });
+
+      store.getState().logSet("se-1000", 5, 90);
+
+      expect(logged).toHaveLength(1);
+      expect(logged[0]).toMatchObject({
+        sessionExerciseId: "se-1000",
+        setNumber: 2,
+        reps: 5,
+        weight: 90,
+      });
+    });
+
+    it("persists the amended history", () => {
+      const saved: PersistedState[] = [];
+      const store = createWorkoutStore((s) => saved.push(s), noop, noop, noop, noop, noop, noop, noop);
+      store.getState().hydrate({
+        activeSession: null,
+        history: [session(1000, "bench-press", [{ setNumber: 1, reps: 8, weight: 80 }])],
+        restDurationMs: 120_000,
+      });
+      const before = saved.length;
+
+      store.getState().logSet("se-1000", 5, 90);
+
+      expect(saved.length).toBe(before + 1);
+      expect(
+        saved[saved.length - 1].history[0].sessionExercises[0].sets
+      ).toHaveLength(2);
+    });
+  });
+
+  describe("getPrefillFor", () => {
+    it("active session: returns the most recent set for the exercise across all sessions", () => {
+      const store = hydrated([
+        session(1000, "bench-press", [
+          { setNumber: 1, reps: 8, weight: 80 },
+          { setNumber: 2, reps: 6, weight: 85 },
+        ]),
+      ]);
+      store.getState().startSession();
+      store.getState().addExerciseToSession("bench-press");
+      const seId = store.getState().activeSession!.sessionExercises[0].id;
+
+      expect(store.getState().getPrefillFor(seId)).toEqual({
+        reps: 6,
+        weight: 85,
+      });
+    });
+
+    it("active session: prefers the active session's own latest set", () => {
+      const store = hydrated([
+        session(1000, "bench-press", [{ setNumber: 1, reps: 8, weight: 80 }]),
+      ]);
+      store.getState().startSession();
+      store.getState().addExerciseToSession("bench-press");
+      const seId = store.getState().activeSession!.sessionExercises[0].id;
+      store.getState().logSet(seId, 5, 100);
+
+      expect(store.getState().getPrefillFor(seId)).toEqual({
+        reps: 5,
+        weight: 100,
+      });
+    });
+
+    it("active session: a never-performed exercise returns {0,0}", () => {
+      const store = freshStore();
+      store.getState().startSession();
+      store.getState().addExerciseToSession("bench-press");
+      const seId = store.getState().activeSession!.sessionExercises[0].id;
+
+      expect(store.getState().getPrefillFor(seId)).toEqual({
+        reps: 0,
+        weight: 0,
+      });
+    });
+
+    it("historical session: returns the last set of that exercise within that same session, not the most recent overall", () => {
+      const store = hydrated([
+        session(1000, "bench-press", [
+          { setNumber: 1, reps: 10, weight: 60 },
+          { setNumber: 2, reps: 8, weight: 65 },
+        ]),
+        session(5000, "bench-press", [{ setNumber: 1, reps: 5, weight: 100 }]),
+      ]);
+
+      // se-1000 is the older session; its own last set wins over session 5000's.
+      expect(store.getState().getPrefillFor("se-1000")).toEqual({
+        reps: 8,
+        weight: 65,
+      });
+    });
+
+    it("historical session: spans sibling session exercises of the same exercise in that session", () => {
+      const store = hydrated([
+        {
+          id: "s-1",
+          startedAt: 1000,
+          endedAt: 2000,
+          sessionExercises: [
+            {
+              id: "se-a",
+              exerciseId: "bench-press",
+              order: 0,
+              sets: [{ id: "a1", setNumber: 1, reps: 8, weight: 80 }],
+            },
+            {
+              id: "se-b",
+              exerciseId: "bench-press",
+              order: 1,
+              sets: [{ id: "b1", setNumber: 1, reps: 5, weight: 90 }],
+            },
+          ],
+        },
+      ]);
+
+      // The later session exercise's set is the session's last for this exercise.
+      expect(store.getState().getPrefillFor("se-a")).toEqual({
+        reps: 5,
+        weight: 90,
+      });
+    });
+
+    it("historical session: an exercise with no sets in the target session returns {0,0} even if performed elsewhere", () => {
+      const noSets = session(1000, "bench-press", []);
+      const store = hydrated([
+        noSets,
+        session(5000, "bench-press", [{ setNumber: 1, reps: 5, weight: 100 }]),
+      ]);
+
+      expect(store.getState().getPrefillFor("se-1000")).toEqual({
+        reps: 0,
+        weight: 0,
+      });
+    });
+
+    it("returns {0,0} for an unknown session exercise", () => {
+      const store = freshStore();
+      expect(store.getState().getPrefillFor("nope")).toEqual({
+        reps: 0,
+        weight: 0,
+      });
+    });
   });
 
   describe("getLastSetFor", () => {

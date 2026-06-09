@@ -41,7 +41,7 @@ export function WorkoutScreen() {
         <SessionExerciseCard
           key={se.id}
           sessionExercise={se}
-          prefill={workoutStore.getState().getLastSetFor(se.exerciseId)}
+          prefill={workoutStore.getState().getPrefillFor(se.id)}
           onLogSet={(reps, weight) =>
             workoutStore.getState().logSet(se.id, reps, weight)
           }

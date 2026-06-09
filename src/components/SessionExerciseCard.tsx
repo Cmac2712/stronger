@@ -1,12 +1,13 @@
 import { View, Text, Pressable } from "react-native";
 import { SessionExercise } from "../types";
 import { getById } from "../data/exerciseLibrary";
+import { nextSetNumber } from "../store/workoutStore";
 import { SetRow, SetRowHeader } from "./SetRow";
 
 type Props = {
   sessionExercise: SessionExercise;
-  // Most recent set for this exercise (from getLastSetFor), or null if never
-  // performed. Seeds the open row so confirming an unchanged set is one tap.
+  // Reps/weight seeding the open row (from getPrefillFor), so confirming an
+  // unchanged set is one tap.
   prefill: { reps: number; weight: number } | null;
   onLogSet: (reps: number, weight: number) => void;
   onRemove: () => void;
@@ -66,7 +67,7 @@ export function SessionExerciseCard({
       <SetRow
         key={`open-${sets.length}`}
         set={null}
-        rowNumber={sets.length + 1}
+        rowNumber={nextSetNumber(sets)}
         prefill={prefill}
         onCommit={onLogSet}
       />

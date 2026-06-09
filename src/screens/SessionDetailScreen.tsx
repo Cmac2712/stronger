@@ -5,7 +5,11 @@ import {
   type RouteProp,
 } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useWorkoutStore, workoutStore } from "../store/workoutStore";
+import {
+  useWorkoutStore,
+  workoutStore,
+  nextSetNumber,
+} from "../store/workoutStore";
 import { getById } from "../data/exerciseLibrary";
 import type { HistoryStackParamList } from "../navigation/RootNavigator";
 import { formatSessionDate, formatDuration } from "../util/format";
@@ -58,24 +62,31 @@ export function SessionDetailScreen() {
             >
               <Text className="text-lg font-bold text-primary-accent-text mb-2">{name}</Text>
             </Pressable>
-            {se.sets.length === 0 ? (
-              <Text className="text-sm text-muted">No sets logged</Text>
-            ) : (
-              <>
-                <SetRowHeader />
-                {se.sets.map((set) => (
-                  <SetRow
-                    key={set.id}
-                    set={set}
-                    rowNumber={set.setNumber}
-                    onUpdate={(patch) =>
-                      workoutStore.getState().updateSet(set.id, patch)
-                    }
-                    onDelete={() => workoutStore.getState().deleteSet(set.id)}
-                  />
-                ))}
-              </>
-            )}
+            <SetRowHeader />
+            {se.sets.map((set) => (
+              <SetRow
+                key={set.id}
+                set={set}
+                rowNumber={set.setNumber}
+                onUpdate={(patch) =>
+                  workoutStore.getState().updateSet(set.id, patch)
+                }
+                onDelete={() => workoutStore.getState().deleteSet(set.id)}
+              />
+            ))}
+            {/* The open row makes a finished workout amendable: committing
+                appends a set to this historical session (no rest timer, no
+                startedAt/endedAt change). Keyed by set count so each commit
+                remounts a fresh row re-seeded from the set just added. */}
+            <SetRow
+              key={`open-${se.sets.length}`}
+              set={null}
+              rowNumber={nextSetNumber(se.sets)}
+              prefill={workoutStore.getState().getPrefillFor(se.id)}
+              onCommit={(reps, weight) =>
+                workoutStore.getState().logSet(se.id, reps, weight)
+              }
+            />
           </View>
         );
       })}

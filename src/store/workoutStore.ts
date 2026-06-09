@@ -64,6 +64,12 @@ export function pickTopSet(sets: Set[]): Set | undefined {
   });
 }
 
+// One past the highest setNumber in the list. Deletion leaves gaps without
+// renumbering, so counting would mint duplicate numbers.
+export function nextSetNumber(sets: Set[]): number {
+  return sets.reduce((max, s) => Math.max(max, s.setNumber), 0) + 1;
+}
+
 export type WorkoutState = PersistedState;
 
 export type WorkoutActions = {
@@ -75,6 +81,7 @@ export type WorkoutActions = {
   updateSet: (setId: string, patch: { reps?: number; weight?: number }) => void;
   deleteSet: (setId: string) => void;
   getLastSetFor: (exerciseId: string) => { reps: number; weight: number } | null;
+  getPrefillFor: (sessionExerciseId: string) => { reps: number; weight: number };
   getSessionsList: () => SessionSummary[];
   getHistoryFor: (exerciseId: string) => ExerciseHistory;
   setRestDuration: (durationMs: number) => void;
@@ -273,35 +280,46 @@ export function createWorkoutStore(
       },
 
       logSet: (sessionExerciseId, reps, rawWeight) => {
-        const active = get().activeSession;
-        if (active === null) {
-          throw new Error("No active session");
-        }
         // Stored weight is always 1 dp so it can never disagree with the
         // 1-dp display (legacy values may carry 2 dp from the stepper era).
         const weight = normalizeWeight(rawWeight);
         const newSetId = genId();
         let newSetNumber = 0;
-        const sessionExercises = active.sessionExercises.map((se) => {
-          if (se.id !== sessionExerciseId) return se;
-          newSetNumber = se.sets.length + 1;
-          return {
-            ...se,
-            sets: [
-              ...se.sets,
-              {
-                id: newSetId,
-                setNumber: newSetNumber,
-                reps,
-                weight,
-              },
-            ],
-          };
+        let inActiveSession = false;
+        // Appending to a session spreads it, so a historical session keeps
+        // its startedAt/endedAt — amending never re-activates.
+        const append = (session: Session, isActive: boolean): Session => ({
+          ...session,
+          sessionExercises: session.sessionExercises.map((se) => {
+            if (se.id !== sessionExerciseId) return se;
+            newSetNumber = nextSetNumber(se.sets);
+            inActiveSession = isActive;
+            return {
+              ...se,
+              sets: [
+                ...se.sets,
+                {
+                  id: newSetId,
+                  setNumber: newSetNumber,
+                  reps,
+                  weight,
+                },
+              ],
+            };
+          }),
         });
-        commit({
-          ...get(),
-          activeSession: { ...active, sessionExercises },
-        });
+        const state = get();
+        const next: WorkoutState = {
+          ...state,
+          activeSession: state.activeSession
+            ? append(state.activeSession, true)
+            : null,
+          history: state.history.map((s) => append(s, false)),
+        };
+        if (newSetNumber === 0) {
+          throw new Error(`Unknown session exercise: ${sessionExerciseId}`);
+        }
+        commit(next);
         onSetLog({
           id: newSetId,
           sessionExerciseId,
@@ -309,7 +327,11 @@ export function createWorkoutStore(
           reps,
           weight,
         });
-        set({ restTimer: startRest(get().restDurationMs, Date.now()) });
+        // The rest timer is a live-workout affordance: amending a historical
+        // session leaves it untouched.
+        if (inActiveSession) {
+          set({ restTimer: startRest(get().restDurationMs, Date.now()) });
+        }
       },
 
       updateSet: (setId, rawPatch) => {
@@ -363,6 +385,42 @@ export function createWorkoutStore(
           return { reps: latest.reps, weight: latest.weight };
         }
         return null;
+      },
+
+      getPrefillFor: (sessionExerciseId) => {
+        const none = { reps: 0, weight: 0 };
+        const state = get();
+
+        // Active session: seed from the most recent set for the exercise
+        // anywhere (today's numbers continue the overall progression).
+        const activeSe = state.activeSession?.sessionExercises.find(
+          (se) => se.id === sessionExerciseId
+        );
+        if (activeSe) {
+          return get().getLastSetFor(activeSe.exerciseId) ?? none;
+        }
+
+        // Historical session: seed from the last set of that exercise within
+        // that same session only — amending continues that day's progression,
+        // never today's. No fallback to other sessions.
+        for (const session of state.history) {
+          const target = session.sessionExercises.find(
+            (se) => se.id === sessionExerciseId
+          );
+          if (!target) continue;
+          const withSets = session.sessionExercises
+            .filter(
+              (se) => se.exerciseId === target.exerciseId && se.sets.length > 0
+            )
+            .sort((a, b) => a.order - b.order);
+          const lastSe = withSets[withSets.length - 1];
+          if (!lastSe) return none;
+          const latest = lastSe.sets.reduce((best, s) =>
+            s.setNumber > best.setNumber ? s : best
+          );
+          return { reps: latest.reps, weight: latest.weight };
+        }
+        return none;
       },
 
       getSessionsList: () =>
