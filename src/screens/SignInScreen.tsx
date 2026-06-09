@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { View, Text, TextInput, Pressable } from "react-native";
+import { Dumbbell, Eye, EyeOff, Lock, Mail } from "lucide-react-native";
 import * as syncEngine from "../sync/syncEngine";
 import { workoutStore } from "../store/workoutStore";
+import { Icon } from "../components/Icon";
 import { colors } from "../theme";
 
 type Props = {
@@ -11,6 +13,7 @@ type Props = {
 export function SignInScreen({ onNavigateSignUp }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -39,38 +42,56 @@ export function SignInScreen({ onNavigateSignUp }: Props) {
   return (
     <View className="flex-1 bg-page items-center justify-center p-6">
       <View className="w-full max-w-sm">
+        <View className="mb-4">
+          <Icon icon={Dumbbell} color="primary-accent-text" size={40} />
+        </View>
         <Text className="text-3xl font-bold text-primary mb-1">Stronger</Text>
         <Text className="text-sm text-muted mb-8">Sign in to continue</Text>
 
         <Text className="text-xs text-secondary mb-1">Email</Text>
-        <TextInput
-          testID="email-input"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          autoComplete="email"
-          keyboardType="email-address"
-          placeholder="you@example.com"
-          placeholderTextColor={colors.muted}
-          keyboardAppearance="dark"
-          className="bg-card border border-subtle rounded-control px-4 py-3 mb-4 text-primary"
-          style={{ color: colors.primary }}
-        />
+        <View className="flex-row items-center bg-card border border-subtle rounded-control px-4 mb-4">
+          <Icon icon={Mail} color="muted" size={18} />
+          <TextInput
+            testID="email-input"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            autoComplete="email"
+            keyboardType="email-address"
+            placeholder="you@example.com"
+            placeholderTextColor={colors.muted}
+            keyboardAppearance="dark"
+            className="flex-1 py-3 pl-3 text-primary"
+            style={{ color: colors.primary }}
+          />
+        </View>
 
         <Text className="text-xs text-secondary mb-1">Password</Text>
-        <TextInput
-          testID="password-input"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          autoComplete="password"
-          placeholder="••••••••"
-          placeholderTextColor={colors.muted}
-          keyboardAppearance="dark"
-          className="bg-card border border-subtle rounded-control px-4 py-3 text-primary"
-          style={{ color: colors.primary }}
-        />
+        <View className="flex-row items-center bg-card border border-subtle rounded-control px-4">
+          <Icon icon={Lock} color="muted" size={18} />
+          <TextInput
+            testID="password-input"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            autoComplete="password"
+            placeholder="••••••••"
+            placeholderTextColor={colors.muted}
+            keyboardAppearance="dark"
+            className="flex-1 py-3 pl-3 text-primary"
+            style={{ color: colors.primary }}
+          />
+          <Pressable
+            testID="toggle-password-visibility"
+            onPress={() => setShowPassword((v) => !v)}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+          >
+            <Icon icon={showPassword ? EyeOff : Eye} color="muted" size={18} />
+          </Pressable>
+        </View>
 
         {error !== null && (
           <Text testID="auth-error" className="text-danger-accent-text text-sm mt-3">{error}</Text>

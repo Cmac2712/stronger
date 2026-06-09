@@ -55,5 +55,6 @@ npm run e2e -- -e TEST_EMAIL=e2e@example.com -e TEST_PASSWORD=test123456
 
 Reuse `subflows/open-fresh.yaml` as the first step. Prefer `id:` (testID) selectors
 over visible text. testIDs currently wired: `email-input`, `password-input`,
-`confirm-password-input`, `signin-submit`, `signup-submit`, `goto-signup`,
-`goto-signin`, `auth-error`, `verify-email-screen`, `tab-workout`, `tab-history`.
+`confirm-password-input`, `toggle-password-visibility` (sign-in), `signin-submit`,
+`signup-submit`, `goto-signup`, `goto-signin`, `auth-error`, `verify-email-screen`,
+`tab-workout`, `tab-history`.
