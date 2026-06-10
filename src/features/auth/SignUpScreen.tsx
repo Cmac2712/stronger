@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { View, Text, TextInput, Pressable } from "react-native";
 import { supabase } from "@sync/supabaseClient";
-import { validateSignUp } from "../supabase/authUtils";
-import { AuthBrandMark } from "../components/AuthBrandMark";
+import { validateSignUp } from "./authUtils";
+import { AuthBrandMark } from "./AuthBrandMark";
 import { colors } from "@shared/theme";
 
 type Props = {

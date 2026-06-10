@@ -1,5 +1,5 @@
 import { View, Text, Pressable } from "react-native";
-import { AuthBrandMark } from "../components/AuthBrandMark";
+import { AuthBrandMark } from "./AuthBrandMark";
 
 type Props = {
   email: string;
