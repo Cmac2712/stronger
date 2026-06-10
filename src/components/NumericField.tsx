@@ -3,8 +3,8 @@ import { TextInput } from "react-native";
 import {
   parseNumericInput,
   formatNumericValue,
-} from "../util/parseNumericInput";
-import { colors } from "../theme";
+} from "@shared/lib/parseNumericInput";
+import { colors } from "@shared/theme";
 
 type Props = {
   accessibilityLabel: string;

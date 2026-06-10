@@ -4,7 +4,7 @@ import { useRoute, type RouteProp } from "@react-navigation/native";
 import { useWorkoutStore, workoutStore } from "../store/workoutStore";
 import { getById } from "../data/exerciseLibrary";
 import type { WorkoutStackParamList } from "../navigation/RootNavigator";
-import { formatSessionDate } from "../util/format";
+import { formatSessionDate } from "@shared/lib/format";
 import { Sparkline } from "../components/Sparkline";
 
 // ExerciseHistory lives in both the Workout and History stacks with the same

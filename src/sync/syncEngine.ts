@@ -4,10 +4,10 @@ import { reconcile } from "./reconciler";
 import { createMutationQueue } from "./mutationQueue";
 import * as localMirror from "./localMirror";
 import { setSyncPaused } from "./syncStatus";
-import { genId } from "../util/id";
+import { genId } from "@shared/lib/id";
 import { UserSettingsRow, SessionRow, SessionExerciseRow, SetRow, Mutation, SyncableRow } from "./types";
-import type { PersistedState, Session } from "../types";
-import { DEFAULT_REST_DURATION_MS } from "../types";
+import type { PersistedState, Session } from "@shared/types";
+import { DEFAULT_REST_DURATION_MS } from "@shared/types";
 
 const queue = createMutationQueue({
   onPause: () => {
@@ -211,7 +211,7 @@ export async function tombstoneSession(sessionId: string): Promise<void> {
 }
 
 export async function upsertSessionExercise(
-  se: Pick<import("../types").SessionExercise, "id" | "exerciseId" | "order"> & {
+  se: Pick<import("@shared/types").SessionExercise, "id" | "exerciseId" | "order"> & {
     sessionId: string;
   }
 ): Promise<void> {

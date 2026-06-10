@@ -3,7 +3,7 @@ import { View, Text, TextInput, Pressable } from "react-native";
 import { supabase } from "../supabase/supabaseClient";
 import { validateSignUp } from "../supabase/authUtils";
 import { AuthBrandMark } from "../components/AuthBrandMark";
-import { colors } from "../theme";
+import { colors } from "@shared/theme";
 
 type Props = {
   onNavigateSignIn: () => void;

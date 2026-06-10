@@ -12,7 +12,7 @@ import {
 } from "../store/workoutStore";
 import { getById } from "../data/exerciseLibrary";
 import type { HistoryStackParamList } from "../navigation/RootNavigator";
-import { formatSessionDate, formatDuration } from "../util/format";
+import { formatSessionDate, formatDuration } from "@shared/lib/format";
 import { SetRow, SetRowHeader } from "../components/SetRow";
 
 type DetailRoute = RouteProp<HistoryStackParamList, "SessionDetail">;

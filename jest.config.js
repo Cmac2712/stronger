@@ -3,6 +3,12 @@ module.exports = {
   setupFiles: ["<rootDir>/jest.setup.js"],
   testMatch: ["**/*.test.ts", "**/*.test.tsx"],
   testPathIgnorePatterns: ["/node_modules/", "<rootDir>/.sandcastle/"],
+  moduleNameMapper: {
+    "^@features/(.*)$": "<rootDir>/src/features/$1",
+    "^@shared/(.*)$": "<rootDir>/src/shared/$1",
+    "^@state/(.*)$": "<rootDir>/src/state/$1",
+    "^@sync/(.*)$": "<rootDir>/src/sync/$1",
+  },
   transformIgnorePatterns: [
     "node_modules/(?!(node_modules|.pnpm|react-native|@react-native|@react-native-community|expo|@expo|@expo-google-fonts|react-navigation|@react-navigation|@sentry/react-native|native-base|@supabase|react-native-url-polyfill))",
   ],

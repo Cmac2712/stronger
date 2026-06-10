@@ -12,6 +12,10 @@ module.exports = function (api) {
 
           alias: {
             '@': './',
+            '@features': './src/features',
+            '@shared': './src/shared',
+            '@state': './src/state',
+            '@sync': './src/sync',
             'tailwind.config': './tailwind.config.js',
           },
         },

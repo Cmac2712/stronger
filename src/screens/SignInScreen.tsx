@@ -4,8 +4,8 @@ import { Eye, EyeOff, Lock, Mail } from "lucide-react-native";
 import * as syncEngine from "../sync/syncEngine";
 import { workoutStore } from "../store/workoutStore";
 import { AuthBrandMark } from "../components/AuthBrandMark";
-import { Icon } from "../components/Icon";
-import { colors } from "../theme";
+import { Icon } from "@shared/ui/Icon";
+import { colors } from "@shared/theme";
 
 type Props = {
   onNavigateSignUp: () => void;

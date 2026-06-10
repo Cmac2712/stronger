@@ -5,8 +5,8 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { History } from "lucide-react-native";
 import { useWorkoutStore, workoutStore } from "../store/workoutStore";
 import type { HistoryStackParamList } from "../navigation/RootNavigator";
-import { formatSessionDate, formatDuration } from "../util/format";
-import { Icon } from "../components/Icon";
+import { formatSessionDate, formatDuration } from "@shared/lib/format";
+import { Icon } from "@shared/ui/Icon";
 
 type Nav = NativeStackNavigationProp<HistoryStackParamList, "HistoryHome">;
 

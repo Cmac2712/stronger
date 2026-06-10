@@ -1,4 +1,4 @@
-const { colors: themeColors, radius } = require('./src/theme');
+const { colors: themeColors, radius } = require('./src/shared/theme');
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {

@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react-native";
-import { colors } from "../theme";
+import { colors } from "@shared/theme";
 
 type Props = {
   // The lucide glyph to render, passed as a component (e.g. icon={Dumbbell})

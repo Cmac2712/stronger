@@ -6,16 +6,16 @@ import {
   Session,
   SessionExercise,
   Set,
-} from "../types";
-import { genId } from "../util/id";
-import { normalizeWeight } from "../util/parseNumericInput";
+} from "@shared/types";
+import { genId } from "@shared/lib/id";
+import { normalizeWeight } from "@shared/lib/parseNumericInput";
 import {
   RestTimer,
   startRest,
   pauseRest,
   resumeRest,
   resetRest,
-} from "../util/restTimer";
+} from "@shared/lib/restTimer";
 
 type Persist = (state: PersistedState) => void;
 type OnRestDurationChange = (durationMs: number) => void;

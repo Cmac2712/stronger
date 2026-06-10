@@ -1,6 +1,6 @@
 import { View } from "react-native";
 import { Dumbbell } from "lucide-react-native";
-import { Icon } from "./Icon";
+import { Icon } from "@shared/ui/Icon";
 
 // The app's brand mark shown above the title on the auth screens
 // (sign in, sign up, verify email). Includes the spacing below it so

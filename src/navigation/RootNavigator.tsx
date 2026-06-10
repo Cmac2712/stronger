@@ -1,13 +1,13 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Dumbbell, History } from "lucide-react-native";
-import { Icon } from "../components/Icon";
+import { Icon } from "@shared/ui/Icon";
 import { WorkoutScreen } from "../screens/WorkoutScreen";
 import { ExercisePickerScreen } from "../screens/ExercisePickerScreen";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { SessionDetailScreen } from "../screens/SessionDetailScreen";
 import { ExerciseHistoryScreen } from "../screens/ExerciseHistoryScreen";
-import { colors } from "../theme";
+import { colors } from "@shared/theme";
 
 export type WorkoutStackParamList = {
   WorkoutHome: undefined;

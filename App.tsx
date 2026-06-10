@@ -15,7 +15,7 @@ import { supabase, supabaseConfigError } from "./src/supabase/supabaseClient";
 import { extractAuthCode } from "./src/supabase/authUtils";
 import * as syncEngine from "./src/sync/syncEngine";
 import { onSyncStatusChange } from "./src/sync/syncStatus";
-import { colors, navigationTheme } from "./src/theme";
+import { colors, navigationTheme } from "@shared/theme";
 import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import "./global.css";
 

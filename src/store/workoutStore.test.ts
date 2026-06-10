@@ -1,6 +1,6 @@
 import { createWorkoutStore, WorkoutStore, pickTopSet } from "./workoutStore";
 import { StoreApi } from "zustand/vanilla";
-import { PersistedState, Session, Set } from "../types";
+import { PersistedState, Session, Set } from "@shared/types";
 
 function noop() {}
 function freshStore(): StoreApi<WorkoutStore> {

@@ -2,10 +2,10 @@ import { useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import { Check, Trash2 } from "lucide-react-native";
-import { Set } from "../types";
-import { colors } from "../theme";
+import { Set } from "@shared/types";
+import { colors } from "@shared/theme";
 import { NumericField } from "./NumericField";
-import { Icon } from "./Icon";
+import { Icon } from "@shared/ui/Icon";
 
 type Props = {
   // The committed set, or null for the open (entry) row.

@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, AppState } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Minus, Plus } from "lucide-react-native";
-import { Icon } from "./Icon";
+import { Icon } from "@shared/ui/Icon";
 import { useWorkoutStore, workoutStore } from "../store/workoutStore";
-import { restRemainingMs, isRestExpired } from "../util/restTimer";
-import { formatRestClock } from "../util/format";
+import { restRemainingMs, isRestExpired } from "@shared/lib/restTimer";
+import { formatRestClock } from "@shared/lib/format";
 
 const ADJUST_STEP_MS = 30_000;
 const MIN_DURATION_MS = 30_000;
