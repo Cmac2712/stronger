@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, TextInput, Pressable } from "react-native";
-import { supabase } from "../supabase/supabaseClient";
+import { supabase } from "@sync/supabaseClient";
 import { validateSignUp } from "../supabase/authUtils";
 import { AuthBrandMark } from "../components/AuthBrandMark";
 import { colors } from "@shared/theme";

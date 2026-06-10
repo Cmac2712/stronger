@@ -6,7 +6,7 @@ import { useWorkoutStore, workoutStore } from "../store/workoutStore";
 import { SessionExerciseCard } from "../components/SessionExerciseCard";
 import { RestTimerBar } from "../components/RestTimerBar";
 import { Icon } from "@shared/ui/Icon";
-import * as syncEngine from "../sync/syncEngine";
+import * as syncEngine from "@sync/syncEngine";
 import type { WorkoutStackParamList } from "../navigation/RootNavigator";
 
 type Nav = NativeStackNavigationProp<WorkoutStackParamList, "WorkoutHome">;

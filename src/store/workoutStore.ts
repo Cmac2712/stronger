@@ -146,37 +146,37 @@ function snapshot(state: WorkoutState): PersistedState {
 const defaultPersist: Persist = () => {};
 
 const defaultOnRestDurationChange: OnRestDurationChange = (durationMs) => {
-  const syncEngine = require("../sync/syncEngine");
+  const syncEngine = require("@sync/syncEngine");
   void syncEngine.setUserSetting(durationMs).catch(() => {});
 };
 
 const defaultOnSessionChange: OnSessionChange = (session) => {
-  const syncEngine = require("../sync/syncEngine");
+  const syncEngine = require("@sync/syncEngine");
   void syncEngine.upsertSession(session).catch(() => {});
 };
 
 const defaultOnSessionExerciseAdd: OnSessionExerciseAdd = (se) => {
-  const syncEngine = require("../sync/syncEngine");
+  const syncEngine = require("@sync/syncEngine");
   void syncEngine.upsertSessionExercise(se).catch(() => {});
 };
 
 const defaultOnSessionExerciseRemove: OnSessionExerciseRemove = (id) => {
-  const syncEngine = require("../sync/syncEngine");
+  const syncEngine = require("@sync/syncEngine");
   void syncEngine.tombstoneSessionExercise(id).catch(() => {});
 };
 
 const defaultOnSetLog: OnSetLog = (s) => {
-  const syncEngine = require("../sync/syncEngine");
+  const syncEngine = require("@sync/syncEngine");
   void syncEngine.upsertSet(s).catch(() => {});
 };
 
 const defaultOnSetUpdate: OnSetUpdate = (s) => {
-  const syncEngine = require("../sync/syncEngine");
+  const syncEngine = require("@sync/syncEngine");
   void syncEngine.upsertSet(s).catch(() => {});
 };
 
 const defaultOnSetDelete: OnSetDelete = (id) => {
-  const syncEngine = require("../sync/syncEngine");
+  const syncEngine = require("@sync/syncEngine");
   void syncEngine.tombstoneSet(id).catch(() => {});
 };
 
