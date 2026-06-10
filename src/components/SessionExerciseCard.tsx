@@ -1,6 +1,6 @@
 import { View, Text, Pressable } from "react-native";
 import { SessionExercise } from "@shared/types";
-import { getById } from "../data/exerciseLibrary";
+import { getById } from "@features/exercises/exerciseLibrary";
 import { nextSetNumber } from "@state/workoutStore";
 import { SetRow, SetRowHeader } from "./SetRow";
 

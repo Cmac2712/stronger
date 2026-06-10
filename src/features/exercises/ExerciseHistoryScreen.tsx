@@ -2,10 +2,10 @@ import { useMemo } from "react";
 import { ScrollView, View, Text, Dimensions } from "react-native";
 import { useRoute, type RouteProp } from "@react-navigation/native";
 import { useWorkoutStore, workoutStore } from "@state/workoutStore";
-import { getById } from "../data/exerciseLibrary";
-import type { WorkoutStackParamList } from "../navigation/RootNavigator";
+import { getById } from "./exerciseLibrary";
+import type { WorkoutStackParamList } from "../../navigation/RootNavigator";
 import { formatSessionDate } from "@shared/lib/format";
-import { Sparkline } from "../components/Sparkline";
+import { Sparkline } from "./Sparkline";
 
 // ExerciseHistory lives in both the Workout and History stacks with the same
 // params; either route type works for reading exerciseId.
