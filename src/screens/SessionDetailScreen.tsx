@@ -10,7 +10,7 @@ import {
   workoutStore,
   nextSetNumber,
 } from "@state/workoutStore";
-import { getById } from "../data/exerciseLibrary";
+import { getById } from "@features/exercises/exerciseLibrary";
 import type { HistoryStackParamList } from "../navigation/RootNavigator";
 import { formatSessionDate, formatDuration } from "@shared/lib/format";
 import { SetRow, SetRowHeader } from "../components/SetRow";

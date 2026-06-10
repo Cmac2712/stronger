@@ -3,10 +3,10 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Dumbbell, History } from "lucide-react-native";
 import { Icon } from "@shared/ui/Icon";
 import { WorkoutScreen } from "../screens/WorkoutScreen";
-import { ExercisePickerScreen } from "../screens/ExercisePickerScreen";
+import { ExercisePickerScreen } from "@features/exercises/ExercisePickerScreen";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { SessionDetailScreen } from "../screens/SessionDetailScreen";
-import { ExerciseHistoryScreen } from "../screens/ExerciseHistoryScreen";
+import { ExerciseHistoryScreen } from "@features/exercises/ExerciseHistoryScreen";
 import { colors } from "@shared/theme";
 
 export type WorkoutStackParamList = {
