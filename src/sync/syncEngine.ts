@@ -1,5 +1,5 @@
 import type { AuthChangeEvent, Session as SupabaseSession } from "@supabase/supabase-js";
-import { supabase } from "../supabase/supabaseClient";
+import { supabase } from "./supabaseClient";
 import { reconcile } from "./reconciler";
 import { createMutationQueue } from "./mutationQueue";
 import * as localMirror from "./localMirror";

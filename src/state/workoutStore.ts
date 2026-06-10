@@ -145,39 +145,39 @@ function snapshot(state: WorkoutState): PersistedState {
 
 const defaultPersist: Persist = () => {};
 
+// require() at call time, not a top-level import: the sync engine (and the
+// Supabase client it initializes) loads only when a default callback actually
+// fires, and dynamic import() hits Node ESM issues under Jest. The return
+// annotation restores the types require() erases.
+const loadSyncEngine = (): typeof import("@sync/syncEngine") =>
+  require("@sync/syncEngine");
+
 const defaultOnRestDurationChange: OnRestDurationChange = (durationMs) => {
-  const syncEngine = require("../sync/syncEngine");
-  void syncEngine.setUserSetting(durationMs).catch(() => {});
+  void loadSyncEngine().setUserSetting(durationMs).catch(() => {});
 };
 
 const defaultOnSessionChange: OnSessionChange = (session) => {
-  const syncEngine = require("../sync/syncEngine");
-  void syncEngine.upsertSession(session).catch(() => {});
+  void loadSyncEngine().upsertSession(session).catch(() => {});
 };
 
 const defaultOnSessionExerciseAdd: OnSessionExerciseAdd = (se) => {
-  const syncEngine = require("../sync/syncEngine");
-  void syncEngine.upsertSessionExercise(se).catch(() => {});
+  void loadSyncEngine().upsertSessionExercise(se).catch(() => {});
 };
 
 const defaultOnSessionExerciseRemove: OnSessionExerciseRemove = (id) => {
-  const syncEngine = require("../sync/syncEngine");
-  void syncEngine.tombstoneSessionExercise(id).catch(() => {});
+  void loadSyncEngine().tombstoneSessionExercise(id).catch(() => {});
 };
 
 const defaultOnSetLog: OnSetLog = (s) => {
-  const syncEngine = require("../sync/syncEngine");
-  void syncEngine.upsertSet(s).catch(() => {});
+  void loadSyncEngine().upsertSet(s).catch(() => {});
 };
 
 const defaultOnSetUpdate: OnSetUpdate = (s) => {
-  const syncEngine = require("../sync/syncEngine");
-  void syncEngine.upsertSet(s).catch(() => {});
+  void loadSyncEngine().upsertSet(s).catch(() => {});
 };
 
 const defaultOnSetDelete: OnSetDelete = (id) => {
-  const syncEngine = require("../sync/syncEngine");
-  void syncEngine.tombstoneSet(id).catch(() => {});
+  void loadSyncEngine().tombstoneSet(id).catch(() => {});
 };
 
 export function createWorkoutStore(
