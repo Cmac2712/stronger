@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View, Text, TextInput, Pressable } from "react-native";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react-native";
 import * as syncEngine from "../sync/syncEngine";
-import { workoutStore } from "../store/workoutStore";
+import { workoutStore } from "@state/workoutStore";
 import { AuthBrandMark } from "../components/AuthBrandMark";
 import { Icon } from "@shared/ui/Icon";
 import { colors } from "@shared/theme";

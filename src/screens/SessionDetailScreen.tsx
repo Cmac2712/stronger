@@ -9,7 +9,7 @@ import {
   useWorkoutStore,
   workoutStore,
   nextSetNumber,
-} from "../store/workoutStore";
+} from "@state/workoutStore";
 import { getById } from "../data/exerciseLibrary";
 import type { HistoryStackParamList } from "../navigation/RootNavigator";
 import { formatSessionDate, formatDuration } from "@shared/lib/format";

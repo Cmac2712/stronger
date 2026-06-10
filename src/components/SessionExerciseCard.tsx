@@ -1,7 +1,7 @@
 import { View, Text, Pressable } from "react-native";
 import { SessionExercise } from "@shared/types";
 import { getById } from "../data/exerciseLibrary";
-import { nextSetNumber } from "../store/workoutStore";
+import { nextSetNumber } from "@state/workoutStore";
 import { SetRow, SetRowHeader } from "./SetRow";
 
 type Props = {

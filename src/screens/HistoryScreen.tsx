@@ -3,7 +3,7 @@ import { FlatList, View, Text, Pressable } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { History } from "lucide-react-native";
-import { useWorkoutStore, workoutStore } from "../store/workoutStore";
+import { useWorkoutStore, workoutStore } from "@state/workoutStore";
 import type { HistoryStackParamList } from "../navigation/RootNavigator";
 import { formatSessionDate, formatDuration } from "@shared/lib/format";
 import { Icon } from "@shared/ui/Icon";

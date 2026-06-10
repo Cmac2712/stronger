@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { ScrollView, View, Text, Dimensions } from "react-native";
 import { useRoute, type RouteProp } from "@react-navigation/native";
-import { useWorkoutStore, workoutStore } from "../store/workoutStore";
+import { useWorkoutStore, workoutStore } from "@state/workoutStore";
 import { getById } from "../data/exerciseLibrary";
 import type { WorkoutStackParamList } from "../navigation/RootNavigator";
 import { formatSessionDate } from "@shared/lib/format";

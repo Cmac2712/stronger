@@ -4,7 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SearchX } from "lucide-react-native";
 import { getAll, MUSCLE_GROUPS, Exercise, MuscleGroup } from "../data/exerciseLibrary";
-import { workoutStore } from "../store/workoutStore";
+import { workoutStore } from "@state/workoutStore";
 import type { WorkoutStackParamList } from "../navigation/RootNavigator";
 import { Icon } from "@shared/ui/Icon";
 

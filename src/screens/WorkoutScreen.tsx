@@ -2,7 +2,7 @@ import { View, Text, Pressable, ScrollView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Plus, Square, LogOut, Dumbbell } from "lucide-react-native";
-import { useWorkoutStore, workoutStore } from "../store/workoutStore";
+import { useWorkoutStore, workoutStore } from "@state/workoutStore";
 import { SessionExerciseCard } from "../components/SessionExerciseCard";
 import { RestTimerBar } from "../components/RestTimerBar";
 import { Icon } from "@shared/ui/Icon";

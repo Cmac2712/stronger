@@ -10,7 +10,7 @@ import { RootNavigator } from "./src/navigation/RootNavigator";
 import { SignInScreen } from "./src/screens/SignInScreen";
 import { SignUpScreen } from "./src/screens/SignUpScreen";
 import { VerifyEmailScreen } from "./src/screens/VerifyEmailScreen";
-import { workoutStore } from "./src/store/workoutStore";
+import { workoutStore } from "@state/workoutStore";
 import { supabase, supabaseConfigError } from "./src/supabase/supabaseClient";
 import { extractAuthCode } from "./src/supabase/authUtils";
 import * as syncEngine from "./src/sync/syncEngine";

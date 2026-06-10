@@ -3,7 +3,7 @@ import { View, Text, Pressable, AppState } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Minus, Plus } from "lucide-react-native";
 import { Icon } from "@shared/ui/Icon";
-import { useWorkoutStore, workoutStore } from "../store/workoutStore";
+import { useWorkoutStore, workoutStore } from "@state/workoutStore";
 import { restRemainingMs, isRestExpired } from "@shared/lib/restTimer";
 import { formatRestClock } from "@shared/lib/format";
 
