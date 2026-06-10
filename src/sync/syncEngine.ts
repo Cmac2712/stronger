@@ -6,7 +6,7 @@ import * as localMirror from "./localMirror";
 import { setSyncPaused } from "./syncStatus";
 import { genId } from "@shared/lib/id";
 import { UserSettingsRow, SessionRow, SessionExerciseRow, SetRow, Mutation, SyncableRow } from "./types";
-import type { PersistedState, Session } from "@shared/types";
+import type { PersistedState, Session, SessionExercise } from "@shared/types";
 import { DEFAULT_REST_DURATION_MS } from "@shared/types";
 
 const queue = createMutationQueue({
@@ -211,7 +211,7 @@ export async function tombstoneSession(sessionId: string): Promise<void> {
 }
 
 export async function upsertSessionExercise(
-  se: Pick<import("@shared/types").SessionExercise, "id" | "exerciseId" | "order"> & {
+  se: Pick<SessionExercise, "id" | "exerciseId" | "order"> & {
     sessionId: string;
   }
 ): Promise<void> {
