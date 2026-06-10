@@ -3,11 +3,11 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Plus, Square, LogOut, Dumbbell } from "lucide-react-native";
 import { useWorkoutStore, workoutStore } from "@state/workoutStore";
-import { SessionExerciseCard } from "../components/SessionExerciseCard";
-import { RestTimerBar } from "../components/RestTimerBar";
+import { SessionExerciseCard } from "./SessionExerciseCard";
+import { RestTimerBar } from "./RestTimerBar";
 import { Icon } from "@shared/ui/Icon";
 import * as syncEngine from "@sync/syncEngine";
-import type { WorkoutStackParamList } from "../navigation/RootNavigator";
+import type { WorkoutStackParamList } from "../../navigation/RootNavigator";
 
 type Nav = NativeStackNavigationProp<WorkoutStackParamList, "WorkoutHome">;
 

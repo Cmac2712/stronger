@@ -2,10 +2,10 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Dumbbell, History } from "lucide-react-native";
 import { Icon } from "@shared/ui/Icon";
-import { WorkoutScreen } from "../screens/WorkoutScreen";
+import { WorkoutScreen } from "@features/sessions/WorkoutScreen";
 import { ExercisePickerScreen } from "@features/exercises/ExercisePickerScreen";
-import { HistoryScreen } from "../screens/HistoryScreen";
-import { SessionDetailScreen } from "../screens/SessionDetailScreen";
+import { HistoryScreen } from "@features/sessions/HistoryScreen";
+import { SessionDetailScreen } from "@features/sessions/SessionDetailScreen";
 import { ExerciseHistoryScreen } from "@features/exercises/ExerciseHistoryScreen";
 import { colors } from "@shared/theme";
 
