@@ -3,7 +3,7 @@ import { ScrollView, View, Text, Dimensions } from "react-native";
 import { useRoute, type RouteProp } from "@react-navigation/native";
 import { useWorkoutStore, workoutStore } from "@state/workoutStore";
 import { getById } from "./exerciseLibrary";
-import type { WorkoutStackParamList } from "../../navigation/RootNavigator";
+import type { WorkoutStackParamList } from "../../app/RootNavigator";
 import { formatSessionDate } from "@shared/lib/format";
 import { Sparkline } from "./Sparkline";
 

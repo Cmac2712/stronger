@@ -7,7 +7,7 @@ import { SessionExerciseCard } from "./SessionExerciseCard";
 import { RestTimerBar } from "./RestTimerBar";
 import { Icon } from "@shared/ui/Icon";
 import * as syncEngine from "@sync/syncEngine";
-import type { WorkoutStackParamList } from "../../navigation/RootNavigator";
+import type { WorkoutStackParamList } from "../../app/RootNavigator";
 
 type Nav = NativeStackNavigationProp<WorkoutStackParamList, "WorkoutHome">;
 

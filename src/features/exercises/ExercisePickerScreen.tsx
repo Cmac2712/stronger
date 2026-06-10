@@ -5,7 +5,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SearchX } from "lucide-react-native";
 import { getAll, MUSCLE_GROUPS, Exercise, MuscleGroup } from "./exerciseLibrary";
 import { workoutStore } from "@state/workoutStore";
-import type { WorkoutStackParamList } from "../../navigation/RootNavigator";
+import type { WorkoutStackParamList } from "../../app/RootNavigator";
 import { Icon } from "@shared/ui/Icon";
 
 type Nav = NativeStackNavigationProp<WorkoutStackParamList, "ExercisePicker">;
