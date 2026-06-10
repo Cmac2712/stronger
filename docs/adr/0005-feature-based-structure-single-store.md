@@ -1,0 +1,21 @@
+# Feature-based source layout with a single app-level store
+
+`src/` was organized by technical layer (`screens/`, `components/`, `store/`, `sync/`, `util/`, `data/`, `navigation/`, `supabase/`), so the files for one capability — say, amending a historical session — were scattered across five folders. We reorganized by feature (vertical slice): `src/features/{auth,sessions,exercises}/` hold the user-facing capabilities, flat internally with tests colocated, while genuinely cross-feature concerns live in siblings — `src/state/` (the single store), `src/sync/` (offline-first infrastructure plus the Supabase client and config), `src/shared/` (Icon, theme, domain types, generic helpers), and `src/app/` (RootNavigator and its param lists). `App.tsx` stays at the repo root as the Expo entrypoint. Path aliases `@features/*`, `@shared/*`, `@state/*`, `@sync/*` (added to TypeScript `paths`, babel `module-resolver`, and jest `moduleNameMapper`, alongside the existing `@/*`) make imports read by intent and survive future moves. Boundaries are deliberately *soft*: no public-API barrels, no import-boundary lint, no monorepo packaging — features may import each other where natural (notably `exercises` reading session history via a store selector for the Sparkline). The move was mechanical and behavior-preserving: `git mv` for every file (history preserved), import rewrites only, gated by `typecheck` + `jest` + `e2e:smoke`.
+
+The dependency direction the layout encodes: features → (`state`, `sync`, `shared`); `state` → `shared`; `sync` → `shared`; nothing → features.
+
+## Considered options
+
+- **Stay layer-based.** Zero work, but the layering tells you *what kind of file* something is, not *what it is for*; navigating one capability means jumping between five folders, and the app's natural seams stay invisible. Rejected.
+- **Per-feature stores.** The structural "complete" version of feature slicing, but the same Session entity graph feeds active logging, the history list, and the per-exercise Sparkline, and sync reconciliation rewrites `activeSession` + `history` atomically. Splitting the store would trade one source of truth for cross-store coordination. Rejected — the store stays one object in `state/`, which forces its pure deps (rest-timer reducer, numeric parsing, id) into `shared/`, never inside a feature.
+- **Hard boundaries (barrels, import-lint, dependency-cruiser, monorepo packages).** Enforced modularity machinery is appropriate for teams; for a single-user app maintained by one person it's ceremony that taxes every future move. Rejected in favor of soft boundaries recorded here.
+- **`sync/` as a feature.** Sync is infrastructure, not a user-facing capability: features and the store depend on it, never the reverse. It keeps its own fold, with the Supabase client and config folded in beside the engine that uses them; only the auth-specific code helper moved to `features/auth`.
+- **Nested `screens/`/`components/` inside each feature.** Needless burial for features of 4–7 files. Rejected — feature folders are flat.
+
+## Consequences
+
+- Placement rule for ambiguous files: shared if used by two or more features or by the app-level store; otherwise feature-local. This sends `format` to `shared/lib` (sessions + exercises), keeps `NumericField` in `sessions` (only SetRow uses it), and forces `restTimer`/`parseNumericInput`/`id` into `shared/lib` (the store uses them).
+- Two distinct `SetRow`s exist by design: the UI component in `features/sessions/` and the persisted sync row type in `src/sync/types.ts`. Different folders make the collision safe; renaming either is out of scope.
+- The feature is named `sessions` per the glossary (active and historical are two states of one Session), while `WorkoutScreen`, `workoutStore`, and the `"Workout"` route keep their names — symbol renames are optional follow-up, tracked separately.
+- Feature screens import the navigation param-list types from `../../app/RootNavigator` relatively; no `@app/*` alias was added since `app/` is the composition root with exactly one consumer (`App.tsx`) and its types are reached from features only for navigation typing.
+- `CONTEXT.md` is unchanged and the app remains a single bounded context — this was an architecture decision, not a glossary change.

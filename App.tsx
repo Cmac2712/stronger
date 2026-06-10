@@ -6,7 +6,7 @@ import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Linking from "expo-linking";
 import type { Session } from "@supabase/supabase-js";
-import { RootNavigator } from "./src/navigation/RootNavigator";
+import { RootNavigator } from "./src/app/RootNavigator";
 import { SignInScreen } from "@features/auth/SignInScreen";
 import { SignUpScreen } from "@features/auth/SignUpScreen";
 import { VerifyEmailScreen } from "@features/auth/VerifyEmailScreen";

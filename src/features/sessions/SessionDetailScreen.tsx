@@ -11,7 +11,7 @@ import {
   nextSetNumber,
 } from "@state/workoutStore";
 import { getById } from "@features/exercises/exerciseLibrary";
-import type { HistoryStackParamList } from "../../navigation/RootNavigator";
+import type { HistoryStackParamList } from "../../app/RootNavigator";
 import { formatSessionDate, formatDuration } from "@shared/lib/format";
 import { SetRow, SetRowHeader } from "./SetRow";
 
