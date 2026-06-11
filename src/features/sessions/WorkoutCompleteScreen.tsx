@@ -1,13 +1,16 @@
-import { ScrollView, View, Text, Pressable } from "react-native";
+import { useState } from "react";
+import { ScrollView, View, Text, Pressable, Modal, TextInput } from "react-native";
 import {
   useRoute,
   useNavigation,
   type RouteProp,
 } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useWorkoutStore } from "@state/workoutStore";
+import { useWorkoutStore, workoutStore } from "@state/workoutStore";
 import { getById } from "@features/exercises/exerciseLibrary";
+import { templateFromSession } from "@features/templates/templateFromSession";
 import { formatDuration } from "@shared/lib/format";
+import { colors } from "@shared/theme";
 import type { WorkoutStackParamList } from "../../app/RootNavigator";
 import { summarizeSession } from "./sessionSummary";
 
@@ -23,6 +26,10 @@ export function WorkoutCompleteScreen() {
   const session = useWorkoutStore((s) =>
     s.history.find((x) => x.id === params.sessionId)
   );
+  const [promptVisible, setPromptVisible] = useState(false);
+  // The name the template was saved under, or null while unsaved. Saving is
+  // one-shot per visit: the action collapses into a confirmation.
+  const [savedName, setSavedName] = useState<string | null>(null);
 
   // Back to WorkoutHome, which renders idle because endSession() already
   // cleared the active session.
@@ -38,6 +45,19 @@ export function WorkoutCompleteScreen() {
   }
 
   const summary = summarizeSession(session);
+  // Distinct exercises with ≥1 logged set, first-appearance order, plus the
+  // dominant-muscle-group default name. The screen is only reached for
+  // non-empty sessions, so exerciseIds is never empty.
+  const derived = templateFromSession(session);
+
+  const onSaveTemplate = (name: string) => {
+    workoutStore.getState().saveTemplate({
+      name,
+      exerciseIds: derived.exerciseIds,
+    });
+    setPromptVisible(false);
+    setSavedName(name);
+  };
 
   return (
     <ScrollView
@@ -86,10 +106,103 @@ export function WorkoutCompleteScreen() {
         );
       })}
 
-      {/* Action area. "Save as template" lands here as the primary action in
-          a later slice; Done then becomes the secondary exit. */}
+      {/* Saving is optional and one-shot: the primary action becomes a
+          confirmation once used, so a session can't be saved twice from here. */}
+      {savedName === null ? (
+        <Pressable
+          testID="save-as-template"
+          onPress={() => setPromptVisible(true)}
+          className="bg-primary-accent rounded-control py-4 items-center mt-2"
+        >
+          <Text className="text-on-accent font-bold text-base">
+            Save as template
+          </Text>
+        </Pressable>
+      ) : (
+        <View
+          testID="template-saved-confirmation"
+          className="bg-card border border-subtle rounded-control py-4 items-center mt-2"
+        >
+          <Text className="text-secondary font-medium text-base">
+            Saved to your templates as “{savedName}”
+          </Text>
+        </View>
+      )}
       <DoneButton onPress={done} />
+
+      <TemplateNamePrompt
+        visible={promptVisible}
+        defaultName={derived.name}
+        onSave={onSaveTemplate}
+        onCancel={() => setPromptVisible(false)}
+      />
     </ScrollView>
+  );
+}
+
+// Name prompt for Save as template, pre-filled with the derived default so
+// accepting the suggestion is a single tap (US #10).
+function TemplateNamePrompt({
+  visible,
+  defaultName,
+  onSave,
+  onCancel,
+}: {
+  visible: boolean;
+  defaultName: string;
+  onSave: (name: string) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(defaultName);
+  const trimmed = name.trim();
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onCancel}
+    >
+      <View className="flex-1 bg-black/60 justify-center p-6">
+        <View
+          testID="template-name-prompt"
+          className="bg-card border border-subtle rounded-surface p-5"
+        >
+          <Text className="text-xl font-bold text-primary mb-1">
+            Save as template
+          </Text>
+          <Text className="text-sm text-muted mb-4">
+            Name this template
+          </Text>
+          <TextInput
+            testID="template-name-input"
+            value={name}
+            onChangeText={setName}
+            selectTextOnFocus
+            placeholder={defaultName}
+            placeholderTextColor={colors.muted}
+            className="bg-page border border-subtle rounded-control py-3 px-4 text-base text-primary mb-4"
+          />
+          <Pressable
+            testID="template-name-save"
+            disabled={trimmed === ""}
+            onPress={() => onSave(trimmed)}
+            className={`bg-primary-accent rounded-control py-3 items-center ${
+              trimmed === "" ? "opacity-50" : ""
+            }`}
+          >
+            <Text className="text-on-accent font-bold text-base">Save</Text>
+          </Pressable>
+          <Pressable
+            testID="template-name-cancel"
+            onPress={onCancel}
+            className="py-3 items-center"
+          >
+            <Text className="text-muted font-medium">Cancel</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 

@@ -13,6 +13,7 @@ Maestro launches a real binary, so you must install a dev/preview build first.
 | `auth/sign-in-wrong-password.yaml` | yes | wrong password → error surfaced |
 | `auth/sign-up-shows-verify.yaml` | yes | new email → "Check your email" screen |
 | `templates/builtin-apply.yaml` | yes | idle launch screen → tap builtin template → prefilled session |
+| `templates/save-and-apply.yaml` | yes | complete workout → save as template → appears under Yours → apply → swipe-delete |
 | `workout/complete-summary.yaml` | yes | non-empty workout → summary → Done → idle; empty skips |
 | `subflows/open-fresh.yaml` | — | shared: clean launch → wait for sign-in |
 | `subflows/signed-in.yaml` | yes | shared: clean launch → sign in → main app |
@@ -63,10 +64,13 @@ selectors over visible text. testIDs currently wired: `email-input`,
 (sign-in), `signin-submit`, `signup-submit`, `goto-signup`, `goto-signin`,
 `auth-error`, `verify-email-screen`, `tab-workout`, `tab-history`,
 `start-workout`, `end-workout`, `workout-complete-screen`,
-`workout-complete-done`, `template-<id>` (e.g. `template-builtin-push`),
-`ai-workout`, `ai-workout-offline-hint`, `ai-workout-error`,
-`ai-split-picker`, `ai-split-<split>` (e.g. `ai-split-push`),
-`ai-split-cancel`.
+`workout-complete-done`, `save-as-template`, `template-name-prompt`,
+`template-name-input`, `template-name-save`, `template-name-cancel`,
+`template-saved-confirmation`, `template-<id>` (builtin rows, e.g.
+`template-builtin-push`), `template-user-<index>` (user rows by list
+position — their ids are generated), `ai-workout`,
+`ai-workout-offline-hint`, `ai-workout-error`, `ai-split-picker`,
+`ai-split-<split>` (e.g. `ai-split-push`), `ai-split-cancel`.
 
 Note: the AI workout's generate path is deliberately NOT covered by a Maestro
 flow — per the PRD's AI-e2e decision it is unit-tested against a mocked

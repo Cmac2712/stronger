@@ -2,8 +2,14 @@ import { useState, useSyncExternalStore } from "react";
 import { View, Text, Pressable, ScrollView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Plus, Square, LogOut, Dumbbell, Sparkles } from "lucide-react-native";
-import { useWorkoutStore, workoutStore } from "@state/workoutStore";
+import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
+import { Plus, Square, LogOut, Dumbbell, Sparkles, Trash2 } from "lucide-react-native";
+import {
+  useWorkoutStore,
+  workoutStore,
+  type TemplateWithSource,
+} from "@state/workoutStore";
+import { colors, radius } from "@shared/theme";
 import { SessionExerciseCard } from "./SessionExerciseCard";
 import { RestTimerBar } from "./RestTimerBar";
 import { Icon } from "@shared/ui/Icon";
@@ -114,11 +120,16 @@ function SignOutButton() {
 }
 
 // The launch screen: every way to begin a session lives here. Builtin
-// template rows are read-only — no delete affordance by design.
+// template rows are read-only — no delete affordance by design; user rows
+// delete by the app-wide swipe-left gesture.
 function IdleView() {
-  // Builtin templates are static, so no store subscription is needed yet;
-  // user templates (a later slice) will bring one.
+  // Subscribing to the raw user-template array re-renders the list on
+  // save/delete; the merged, library-vetted view still comes from
+  // getTemplates().
+  useWorkoutStore((s) => s.templates);
   const templates = workoutStore.getState().getTemplates();
+  const builtinTemplates = templates.filter((t) => t.source === "builtin");
+  const userTemplates = templates.filter((t) => t.source === "user");
 
   // The AI workout is the app's only network-required feature; it gates on
   // the device connectivity signal (see @sync/connectivity for why the
@@ -210,22 +221,83 @@ function IdleView() {
       <Text className="text-sm font-medium text-muted uppercase mt-8 mb-3">
         Builtin
       </Text>
-      {templates.map((t) => (
-        <Pressable
-          key={t.id}
-          testID={`template-${t.id}`}
-          onPress={() => workoutStore.getState().applyTemplate(t.exerciseIds)}
-          className="bg-card border border-subtle rounded-surface p-4 mb-3"
-        >
-          <Text className="text-lg font-bold text-primary">{t.name}</Text>
-          <Text className="text-sm text-muted mt-1">
-            {t.exerciseIds.length}{" "}
-            {t.exerciseIds.length === 1 ? "exercise" : "exercises"}
-          </Text>
-        </Pressable>
+      {builtinTemplates.map((t) => (
+        <TemplateRow key={t.id} template={t} testID={`template-${t.id}`} />
+      ))}
+
+      {/* The header only appears once there is something of yours to list. */}
+      {userTemplates.length > 0 && (
+        <Text className="text-sm font-medium text-muted uppercase mt-5 mb-3">
+          Yours
+        </Text>
+      )}
+      {userTemplates.map((t, index) => (
+        // Indexed testID: user-template ids are generated, so flows address
+        // rows by list position instead.
+        <TemplateRow key={t.id} template={t} testID={`template-user-${index}`} />
       ))}
 
       <SignOutButton />
     </ScrollView>
+  );
+}
+
+// One launch-screen template row: tap applies (start-only). User rows swipe
+// left to delete — immediate, no confirmation, the same gesture and contract
+// as SetRow; builtin rows are not swipeable at all.
+function TemplateRow({
+  template,
+  testID,
+}: {
+  template: TemplateWithSource;
+  testID: string;
+}) {
+  const row = (
+    <Pressable
+      testID={testID}
+      onPress={() =>
+        workoutStore.getState().applyTemplate(template.exerciseIds)
+      }
+      className="bg-card border border-subtle rounded-surface p-4"
+    >
+      <Text className="text-lg font-bold text-primary">{template.name}</Text>
+      <Text className="text-sm text-muted mt-1">
+        {template.exerciseIds.length}{" "}
+        {template.exerciseIds.length === 1 ? "exercise" : "exercises"}
+      </Text>
+    </Pressable>
+  );
+
+  if (template.source === "builtin") {
+    return <View className="mb-3">{row}</View>;
+  }
+
+  return (
+    <ReanimatedSwipeable
+      containerStyle={{ marginBottom: 12 }}
+      renderRightActions={() => (
+        <View
+          className="w-16 bg-danger rounded-surface items-center justify-center"
+          accessibilityLabel={`Delete template ${template.name}`}
+        >
+          <Icon icon={Trash2} size={20} color="on-accent" />
+        </View>
+      )}
+      // Opening the panel IS the delete — no confirmation, no undo.
+      onSwipeableOpen={() =>
+        workoutStore.getState().deleteTemplate(template.id)
+      }
+      overshootRight={false}
+      friction={2}
+      rightThreshold={40}
+      // The row's rounded corners are transparent; a page-coloured backing
+      // stops the danger panel showing through them while the row slides.
+      childrenContainerStyle={{
+        backgroundColor: colors.page,
+        borderRadius: radius.surface,
+      }}
+    >
+      {row}
+    </ReanimatedSwipeable>
   );
 }
