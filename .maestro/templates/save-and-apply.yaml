@@ -1,0 +1,82 @@
+# The full user-template lifecycle: complete a workout → Save as template
+# (default name pre-filled) → it appears under Yours → tap applies it into a
+# fresh session → swipe-left deletes it. Deleting at the end keeps the seeded
+# user's canonical state free of templates for the next run.
+#
+# Requires a seeded, pre-confirmed test user (see scripts/e2e-seed-user.mjs):
+#   maestro test -e TEST_EMAIL=... -e TEST_PASSWORD=... .maestro/templates/save-and-apply.yaml
+appId: com.workout.app
+name: Templates · save from complete screen, apply, swipe-delete
+tags:
+  - templates
+  - backend
+---
+- runFlow: ../subflows/signed-in.yaml
+
+# Perform a one-exercise workout so the complete screen appears. Bench press
+# is the only logged exercise, so the derived default name is "Chest".
+- tapOn:
+    id: "start-workout"
+- tapOn: "Add Exercise"
+- tapOn: "Barbell Bench Press"
+- tapOn: "Set 1 reps, tap to type"
+- inputText: "8"
+- hideKeyboard
+- tapOn: "Log set 1"
+- tapOn:
+    id: "end-workout"
+- extendedWaitUntil:
+    visible:
+      id: "workout-complete-screen"
+    timeout: 10000
+
+# Save as template, accepting the pre-filled default name.
+- tapOn:
+    id: "save-as-template"
+- assertVisible:
+    id: "template-name-prompt"
+- assertVisible: "Chest"
+- tapOn:
+    id: "template-name-save"
+- assertVisible:
+    id: "template-saved-confirmation"
+- tapOn:
+    id: "workout-complete-done"
+
+# Back on the launch screen, the template is listed under Yours.
+- extendedWaitUntil:
+    visible:
+      id: "start-workout"
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      text: "Yours"
+- assertVisible:
+    id: "template-user-0"
+- assertVisible: "Chest"
+
+# Tapping it starts a fresh session pre-filled with its exercises.
+- tapOn:
+    id: "template-user-0"
+- assertVisible: "Active Workout"
+- assertVisible: "Barbell Bench Press"
+
+# The applied session has no logged sets, so ending it skips the summary.
+- scrollUntilVisible:
+    element:
+      text: "End Workout"
+- tapOn: "End Workout"
+- assertVisible:
+    id: "start-workout"
+
+# Swipe-left deletes the user template; the Yours section empties with it.
+- scrollUntilVisible:
+    element:
+      id: "template-user-0"
+- swipe:
+    from:
+      id: "template-user-0"
+    direction: LEFT
+- assertNotVisible:
+    id: "template-user-0"
+- assertNotVisible: "Yours"
