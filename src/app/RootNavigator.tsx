@@ -6,6 +6,7 @@ import { WorkoutScreen } from "@features/sessions/WorkoutScreen";
 import { ExercisePickerScreen } from "@features/exercises/ExercisePickerScreen";
 import { HistoryScreen } from "@features/sessions/HistoryScreen";
 import { SessionDetailScreen } from "@features/sessions/SessionDetailScreen";
+import { WorkoutCompleteScreen } from "@features/sessions/WorkoutCompleteScreen";
 import { ExerciseHistoryScreen } from "@features/exercises/ExerciseHistoryScreen";
 import { colors } from "@shared/theme";
 
@@ -13,6 +14,7 @@ export type WorkoutStackParamList = {
   WorkoutHome: undefined;
   ExercisePicker: undefined;
   ExerciseHistory: { exerciseId: string };
+  WorkoutComplete: { sessionId: string };
 };
 
 export type HistoryStackParamList = {
@@ -38,6 +40,13 @@ function WorkoutStackScreen() {
         name="ExerciseHistory"
         component={ExerciseHistoryScreen}
         options={{ title: "Exercise" }}
+      />
+      <WorkoutStack.Screen
+        name="WorkoutComplete"
+        component={WorkoutCompleteScreen}
+        // The session is over; Done is the only way forward, so no back
+        // affordance to a stale active-workout view.
+        options={{ title: "Summary", headerBackVisible: false }}
       />
     </WorkoutStack.Navigator>
   );
