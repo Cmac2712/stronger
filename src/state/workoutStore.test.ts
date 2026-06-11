@@ -1153,4 +1153,86 @@ describe("workoutStore", () => {
       });
     });
   });
+
+  describe("applyTemplate", () => {
+    it("starts a session with the template's exercises added in order", () => {
+      const store = freshStore();
+      store.getState().applyTemplate(["bench-press", "squat", "deadlift"]);
+
+      const active = store.getState().activeSession;
+      expect(active).not.toBeNull();
+      expect(active?.endedAt).toBeNull();
+      const exercises = active?.sessionExercises ?? [];
+      expect(exercises.map((se) => se.exerciseId)).toEqual([
+        "bench-press",
+        "squat",
+        "deadlift",
+      ]);
+      expect(exercises.map((se) => se.order)).toEqual([0, 1, 2]);
+      // empty set lists — reps/weight come from the existing prefill
+      expect(exercises.every((se) => se.sets.length === 0)).toBe(true);
+    });
+
+    it("emits the same sync callbacks as startSession + addExerciseToSession", () => {
+      const onSessionChange = jest.fn();
+      const onSessionExerciseAdd = jest.fn();
+      const store = createWorkoutStore(
+        noop,
+        noop,
+        onSessionChange,
+        onSessionExerciseAdd,
+        noop,
+        noop,
+        noop,
+        noop
+      );
+      store.getState().applyTemplate(["bench-press", "squat"]);
+
+      const sessionId = store.getState().activeSession!.id;
+      expect(onSessionChange).toHaveBeenCalledTimes(1);
+      expect(onSessionChange).toHaveBeenCalledWith(
+        expect.objectContaining({ id: sessionId, endedAt: null })
+      );
+      expect(onSessionExerciseAdd).toHaveBeenCalledTimes(2);
+      expect(onSessionExerciseAdd).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ sessionId, exerciseId: "bench-press", order: 0 })
+      );
+      expect(onSessionExerciseAdd).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ sessionId, exerciseId: "squat", order: 1 })
+      );
+    });
+
+    it("throws while a session is active and leaves it untouched", () => {
+      const store = freshStore();
+      store.getState().startSession();
+      store.getState().addExerciseToSession("bench-press");
+      const before = store.getState().activeSession;
+
+      expect(() => store.getState().applyTemplate(["squat"])).toThrow();
+
+      expect(store.getState().activeSession).toEqual(before);
+      expect(store.getState().history).toEqual([]);
+    });
+  });
+
+  describe("getTemplates", () => {
+    it("returns the builtin templates tagged with a builtin source marker", () => {
+      const store = freshStore();
+      const templates = store.getState().getTemplates();
+
+      expect(templates.map((t) => t.id)).toEqual([
+        "builtin-push",
+        "builtin-pull",
+        "builtin-legs",
+      ]);
+      expect(templates.every((t) => t.source === "builtin")).toBe(true);
+      // each carries the full template shape for the launch screen to render/apply
+      for (const t of templates) {
+        expect(typeof t.name).toBe("string");
+        expect(t.exerciseIds.length).toBeGreaterThan(0);
+      }
+    });
+  });
 });

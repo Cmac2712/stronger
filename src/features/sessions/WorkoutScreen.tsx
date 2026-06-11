@@ -91,7 +91,13 @@ function SignOutButton() {
   );
 }
 
+// The launch screen: every way to begin a session lives here. Builtin
+// template rows are read-only — no delete affordance by design.
 function IdleView() {
+  // Builtin templates are static, so no store subscription is needed yet;
+  // user templates (a later slice) will bring one.
+  const templates = workoutStore.getState().getTemplates();
+
   const onStart = () => {
     // A freshly started session is empty; the user picks exercises via the
     // Add Exercise modal.
@@ -99,15 +105,34 @@ function IdleView() {
   };
 
   return (
-    <View className="flex-1 bg-page items-center justify-center p-6">
+    <ScrollView className="flex-1 bg-page" contentContainerClassName="p-6">
       <Pressable
+        testID="start-workout"
         onPress={onStart}
-        className="bg-primary-accent rounded-surface px-10 py-6"
+        className="bg-primary-accent rounded-surface py-6 items-center"
       >
         <Text className="text-on-accent font-bold text-xl">Start Workout</Text>
       </Pressable>
 
+      <Text className="text-sm font-medium text-muted uppercase mt-8 mb-3">
+        Builtin
+      </Text>
+      {templates.map((t) => (
+        <Pressable
+          key={t.id}
+          testID={`template-${t.id}`}
+          onPress={() => workoutStore.getState().applyTemplate(t.exerciseIds)}
+          className="bg-card border border-subtle rounded-surface p-4 mb-3"
+        >
+          <Text className="text-lg font-bold text-primary">{t.name}</Text>
+          <Text className="text-sm text-muted mt-1">
+            {t.exerciseIds.length}{" "}
+            {t.exerciseIds.length === 1 ? "exercise" : "exercises"}
+          </Text>
+        </Pressable>
+      ))}
+
       <SignOutButton />
-    </View>
+    </ScrollView>
   );
 }

@@ -1,4 +1,4 @@
-# Maestro E2E — auth flows
+# Maestro E2E flows
 
 End-to-end tests that drive the **built app** (`com.workout.app`), not Expo Go.
 Maestro launches a real binary, so you must install a dev/preview build first.
@@ -12,6 +12,7 @@ Maestro launches a real binary, so you must install a dev/preview build first.
 | `auth/sign-in-success.yaml` | yes | pre-confirmed user → main app |
 | `auth/sign-in-wrong-password.yaml` | yes | wrong password → error surfaced |
 | `auth/sign-up-shows-verify.yaml` | yes | new email → "Check your email" screen |
+| `templates/builtin-apply.yaml` | yes | idle launch screen → tap builtin template → prefilled session |
 | `subflows/open-fresh.yaml` | — | shared: clean launch → wait for sign-in |
 
 The two `no-backend` flows are fully deterministic and the recommended smoke set.
@@ -57,4 +58,5 @@ Reuse `subflows/open-fresh.yaml` as the first step. Prefer `id:` (testID) select
 over visible text. testIDs currently wired: `email-input`, `password-input`,
 `confirm-password-input`, `toggle-password-visibility` (sign-in), `signin-submit`,
 `signup-submit`, `goto-signup`, `goto-signin`, `auth-error`, `verify-email-screen`,
-`tab-workout`, `tab-history`.
+`tab-workout`, `tab-history`, `start-workout`, `template-<id>` (e.g.
+`template-builtin-push`).

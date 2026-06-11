@@ -1,0 +1,55 @@
+# From the idle launch screen, tap a builtin template and land in an active
+# session pre-filled with its exercises. Ends the session afterwards so the
+# seeded user's canonical state stays idle for the next run.
+#
+# Requires a seeded, pre-confirmed test user (the Workout tab only renders
+# when signed in — see scripts/e2e-seed-user.mjs):
+#   maestro test -e TEST_EMAIL=... -e TEST_PASSWORD=... .maestro/templates/builtin-apply.yaml
+appId: com.workout.app
+name: Templates · builtin tap starts prefilled session
+tags:
+  - templates
+  - backend
+---
+- runFlow: ../subflows/open-fresh.yaml
+- tapOn:
+    id: "email-input"
+- inputText: ${TEST_EMAIL}
+- tapOn:
+    id: "password-input"
+- inputText: ${TEST_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "signin-submit"
+- extendedWaitUntil:
+    visible:
+      id: "tab-workout"
+    timeout: 20000
+- tapOn:
+    id: "tab-workout"
+
+# Idle launch screen: plain start plus the Builtin section.
+- assertVisible:
+    id: "start-workout"
+- assertVisible: "Builtin"
+- assertVisible:
+    id: "template-builtin-push"
+
+- tapOn:
+    id: "template-builtin-push"
+
+# A fresh active session containing the Push template's exercises, in order.
+- assertVisible: "Active Workout"
+- assertVisible: "Barbell Bench Press"
+- scrollUntilVisible:
+    element:
+      text: "Triceps Pushdown"
+
+# Clean up: end the session so the flow is idempotent (canonical state would
+# otherwise resurrect the active session on the next pull).
+- scrollUntilVisible:
+    element:
+      text: "End Workout"
+- tapOn: "End Workout"
+- assertVisible:
+    id: "start-workout"

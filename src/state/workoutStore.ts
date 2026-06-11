@@ -16,6 +16,11 @@ import {
   resumeRest,
   resetRest,
 } from "@shared/lib/restTimer";
+// Data-only module (no imports of its own), so this state -> features edge
+// creates no cycle. Builtin templates merge into getTemplates() at read time;
+// user templates join them in a later slice.
+import * as templateLibrary from "@features/templates/templateLibrary";
+import type { Template } from "@features/templates/templateLibrary";
 
 type Persist = (state: PersistedState) => void;
 type OnRestDurationChange = (durationMs: number) => void;
@@ -70,12 +75,18 @@ export function nextSetNumber(sets: Set[]): number {
   return sets.reduce((max, s) => Math.max(max, s.setNumber), 0) + 1;
 }
 
+export type TemplateSource = "builtin" | "user";
+
+export type TemplateWithSource = Template & { source: TemplateSource };
+
 export type WorkoutState = PersistedState;
 
 export type WorkoutActions = {
   startSession: () => void;
   endSession: () => void;
   addExerciseToSession: (exerciseId: string) => void;
+  applyTemplate: (exerciseIds: string[]) => void;
+  getTemplates: () => TemplateWithSource[];
   removeExerciseFromSession: (sessionExerciseId: string) => void;
   logSet: (sessionExerciseId: string, reps: number, weight: number) => void;
   updateSet: (setId: string, patch: { reps?: number; weight?: number }) => void;
@@ -262,6 +273,21 @@ export function createWorkoutStore(
           order: sessionExercise.order,
         });
       },
+
+      // Start-only: composes startSession + addExerciseToSession, so the
+      // startSession guard throws before anything mutates while a session is
+      // active (the launch screen only offers templates when idle).
+      applyTemplate: (exerciseIds) => {
+        get().startSession();
+        for (const exerciseId of exerciseIds) {
+          get().addExerciseToSession(exerciseId);
+        }
+      },
+
+      getTemplates: () =>
+        templateLibrary
+          .getAll()
+          .map((t) => ({ ...t, source: "builtin" as const })),
 
       removeExerciseFromSession: (sessionExerciseId) => {
         const active = get().activeSession;
