@@ -15,6 +15,7 @@ import { supabase, supabaseConfigError } from "@sync/supabaseClient";
 import { extractAuthCode } from "@features/auth/authUtils";
 import * as syncEngine from "@sync/syncEngine";
 import { onSyncStatusChange } from "@sync/syncStatus";
+import { startConnectivityMonitoring } from "@sync/connectivity";
 import { colors, navigationTheme } from "@shared/theme";
 import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import "./global.css";
@@ -76,6 +77,12 @@ export default function App() {
 
   useEffect(() => {
     return onSyncStatusChange(setSyncPaused);
+  }, []);
+
+  // Mirror the OS network state into the connectivity signal that gates the
+  // AI workout option (the only network-required feature).
+  useEffect(() => {
+    return startConnectivityMonitoring();
   }, []);
 
   useEffect(() => {
