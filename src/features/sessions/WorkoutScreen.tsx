@@ -1,12 +1,17 @@
+import { useState, useSyncExternalStore } from "react";
 import { View, Text, Pressable, ScrollView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Plus, Square, LogOut, Dumbbell } from "lucide-react-native";
+import { Plus, Square, LogOut, Dumbbell, Sparkles } from "lucide-react-native";
 import { useWorkoutStore, workoutStore } from "@state/workoutStore";
 import { SessionExerciseCard } from "./SessionExerciseCard";
 import { RestTimerBar } from "./RestTimerBar";
 import { Icon } from "@shared/ui/Icon";
 import * as syncEngine from "@sync/syncEngine";
+import * as connectivity from "@sync/connectivity";
+import { AiSplitPicker } from "@features/templates/AiSplitPicker";
+import { startAiWorkout, AiWorkoutError } from "@features/templates/aiWorkout";
+import type { Split } from "@features/templates/templateLibrary";
 import type { WorkoutStackParamList } from "../../app/RootNavigator";
 
 type Nav = NativeStackNavigationProp<WorkoutStackParamList, "WorkoutHome">;
@@ -111,10 +116,41 @@ function IdleView() {
   // user templates (a later slice) will bring one.
   const templates = workoutStore.getState().getTemplates();
 
+  // The AI workout is the app's only network-required feature; it gates on
+  // the device connectivity signal (see @sync/connectivity for why the
+  // sync-status "paused" listener is the wrong gate).
+  const online = useSyncExternalStore(
+    connectivity.onConnectivityChange,
+    connectivity.isOnline
+  );
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
   const onStart = () => {
     // A freshly started session is empty; the user picks exercises via the
     // Add Exercise modal.
     workoutStore.getState().startSession();
+  };
+
+  const onSelectSplit = async (split: Split) => {
+    setPickerVisible(false);
+    setGenerating(true);
+    setAiError(null);
+    try {
+      // On success applyTemplate starts the session, activeSession becomes
+      // non-null, and WorkoutScreen re-renders straight into the active view
+      // — generate-and-go, no confirmation step.
+      await startAiWorkout(split);
+    } catch (error) {
+      setAiError(
+        error instanceof AiWorkoutError
+          ? error.message
+          : "Couldn't generate a workout. Please try again."
+      );
+    } finally {
+      setGenerating(false);
+    }
   };
 
   return (
@@ -126,6 +162,45 @@ function IdleView() {
       >
         <Text className="text-on-accent font-bold text-xl">Start Workout</Text>
       </Pressable>
+
+      <Pressable
+        testID="ai-workout"
+        disabled={!online || generating}
+        onPress={() => {
+          setAiError(null);
+          setPickerVisible(true);
+        }}
+        className={`bg-card border border-subtle rounded-surface py-6 mt-3 flex-row items-center justify-center gap-2 ${
+          !online || generating ? "opacity-50" : ""
+        }`}
+      >
+        <Icon icon={Sparkles} size={20} color="primary" />
+        <Text className="text-primary font-bold text-xl">
+          {generating ? "Generating…" : "AI Workout"}
+        </Text>
+      </Pressable>
+      {!online && (
+        <Text
+          testID="ai-workout-offline-hint"
+          className="text-sm text-muted mt-2"
+        >
+          You're offline — AI workout needs an internet connection.
+        </Text>
+      )}
+      {aiError !== null && (
+        <Text
+          testID="ai-workout-error"
+          className="text-danger-accent-text text-sm mt-2"
+        >
+          {aiError}
+        </Text>
+      )}
+
+      <AiSplitPicker
+        visible={pickerVisible}
+        onSelect={(split) => void onSelectSplit(split)}
+        onCancel={() => setPickerVisible(false)}
+      />
 
       <Text className="text-sm font-medium text-muted uppercase mt-8 mb-3">
         Builtin

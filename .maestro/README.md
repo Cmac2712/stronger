@@ -63,4 +63,13 @@ selectors over visible text. testIDs currently wired: `email-input`,
 (sign-in), `signin-submit`, `signup-submit`, `goto-signup`, `goto-signin`,
 `auth-error`, `verify-email-screen`, `tab-workout`, `tab-history`,
 `start-workout`, `end-workout`, `workout-complete-screen`,
-`workout-complete-done`, `template-<id>` (e.g. `template-builtin-push`).
+`workout-complete-done`, `template-<id>` (e.g. `template-builtin-push`),
+`ai-workout`, `ai-workout-offline-hint`, `ai-workout-error`,
+`ai-split-picker`, `ai-split-<split>` (e.g. `ai-split-push`),
+`ai-split-cancel`.
+
+Note: the AI workout's generate path is deliberately NOT covered by a Maestro
+flow — per the PRD's AI-e2e decision it is unit-tested against a mocked
+function client (`src/features/templates/aiWorkout.test.ts`), and live model
+behaviour is verified once in the deploy slice (#45). A flow here would either
+hit the live model on every run or assert nothing beyond the launch screen.

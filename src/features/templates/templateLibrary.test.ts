@@ -1,4 +1,5 @@
-import { getAll, getById, SPLITS } from "./templateLibrary";
+import { getAll, getById, SPLITS, SPLIT_LABELS } from "./templateLibrary";
+import * as buildWorkoutRequest from "./buildWorkoutRequest";
 import * as exerciseLibrary from "@features/exercises/exerciseLibrary";
 
 describe("templateLibrary", () => {
@@ -34,14 +35,20 @@ describe("templateLibrary", () => {
     expect(getById("builtin-nope")).toBeUndefined();
   });
 
-  it("exports the fixed six-value Split set", () => {
-    expect(SPLITS).toEqual([
-      "Push",
-      "Pull",
-      "Legs",
-      "Upper",
-      "Lower",
-      "Full body",
-    ]);
+  it("re-exports the canonical six-value Split set from buildWorkoutRequest", () => {
+    expect(SPLITS).toEqual(["push", "pull", "legs", "upper", "lower", "full-body"]);
+    // Same array, not a copy — the UI and the edge function cannot drift.
+    expect(SPLITS).toBe(buildWorkoutRequest.SPLITS);
+  });
+
+  it("provides a display label for every split", () => {
+    expect(SPLIT_LABELS).toEqual({
+      push: "Push",
+      pull: "Pull",
+      legs: "Legs",
+      upper: "Upper",
+      lower: "Lower",
+      "full-body": "Full body",
+    });
   });
 });

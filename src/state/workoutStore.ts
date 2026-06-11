@@ -16,9 +16,9 @@ import {
   resumeRest,
   resetRest,
 } from "@shared/lib/restTimer";
-// Data-only module (no imports of its own), so this state -> features edge
-// creates no cycle. Builtin templates merge into getTemplates() at read time;
-// user templates join them in a later slice.
+// Data-only module (its only imports are other data-only feature modules), so
+// this state -> features edge creates no cycle. Builtin templates merge into
+// getTemplates() at read time; user templates join them in a later slice.
 import * as templateLibrary from "@features/templates/templateLibrary";
 import type { Template } from "@features/templates/templateLibrary";
 

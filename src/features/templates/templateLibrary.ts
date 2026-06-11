@@ -9,17 +9,23 @@ export type Template = {
   exerciseIds: string[]; // ordered FKs into exerciseLibrary
 };
 
-// The fixed set of training splits, for AI workout generation (later slice).
-export const SPLITS = [
-  "Push",
-  "Pull",
-  "Legs",
-  "Upper",
-  "Lower",
-  "Full body",
-] as const;
+// The canonical Split set lives in buildWorkoutRequest (shared with the Deno
+// edge function, which validates incoming splits against it); re-export it so
+// app UI and edge-function validation cannot drift.
+export { SPLITS, isSplit } from "./buildWorkoutRequest";
+export type { Split } from "./buildWorkoutRequest";
 
-export type Split = (typeof SPLITS)[number];
+import type { Split } from "./buildWorkoutRequest";
+
+// UI display names for the canonical lowercase split ids.
+export const SPLIT_LABELS: Record<Split, string> = {
+  push: "Push",
+  pull: "Pull",
+  legs: "Legs",
+  upper: "Upper",
+  lower: "Lower",
+  "full-body": "Full body",
+};
 
 // Ids are stable, namespaced strings — they may end up persisted (e.g. in
 // analytics or future references), so never rename or reuse them.
