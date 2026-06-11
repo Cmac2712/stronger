@@ -20,15 +20,18 @@ export type SessionSummary = {
 // Duplicate session exercises of the same exercise fold into one row (their
 // sets merge), matching how per-exercise history reads a session.
 export function summarizeSession(session: Session): SessionSummary {
-  const setsByExercise = new Map<string, Set[]>();
-  for (const se of [...session.sessionExercises].sort(
+  const ordered = [...session.sessionExercises].sort(
     (a, b) => a.order - b.order
-  )) {
+  );
+  const setsByExercise = new Map<string, Set[]>();
+  for (const se of ordered) {
     if (se.sets.length === 0) continue;
     const sets = setsByExercise.get(se.exerciseId) ?? [];
     setsByExercise.set(se.exerciseId, [...sets, ...se.sets]);
   }
 
+  // Every list in the map is non-empty (empty entries were skipped above),
+  // so pickTopSet never returns undefined here.
   const exercises = [...setsByExercise.entries()].map(
     ([exerciseId, sets]) => ({
       exerciseId,
