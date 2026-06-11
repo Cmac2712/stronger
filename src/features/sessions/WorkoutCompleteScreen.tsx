@@ -48,12 +48,12 @@ export function WorkoutCompleteScreen() {
   // Distinct exercises with ≥1 logged set, first-appearance order, plus the
   // dominant-muscle-group default name. The screen is only reached for
   // non-empty sessions, so exerciseIds is never empty.
-  const derived = templateFromSession(session);
+  const derivedTemplate = templateFromSession(session);
 
   const onSaveTemplate = (name: string) => {
     workoutStore.getState().saveTemplate({
       name,
-      exerciseIds: derived.exerciseIds,
+      exerciseIds: derivedTemplate.exerciseIds,
     });
     setPromptVisible(false);
     setSavedName(name);
@@ -132,7 +132,7 @@ export function WorkoutCompleteScreen() {
 
       <TemplateNamePrompt
         visible={promptVisible}
-        defaultName={derived.name}
+        defaultName={derivedTemplate.name}
         onSave={onSaveTemplate}
         onCancel={() => setPromptVisible(false)}
       />
@@ -155,6 +155,7 @@ function TemplateNamePrompt({
 }) {
   const [name, setName] = useState(defaultName);
   const trimmed = name.trim();
+  const saveDisabled = trimmed === "";
 
   return (
     <Modal
@@ -185,10 +186,10 @@ function TemplateNamePrompt({
           />
           <Pressable
             testID="template-name-save"
-            disabled={trimmed === ""}
+            disabled={saveDisabled}
             onPress={() => onSave(trimmed)}
             className={`bg-primary-accent rounded-control py-3 items-center ${
-              trimmed === "" ? "opacity-50" : ""
+              saveDisabled ? "opacity-50" : ""
             }`}
           >
             <Text className="text-on-accent font-bold text-base">Save</Text>
