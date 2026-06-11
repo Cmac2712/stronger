@@ -96,10 +96,10 @@ export function WorkoutScreen() {
       <Pressable
         testID="end-workout"
         onPress={onEndWorkout}
-        className="bg-danger rounded-control py-4 flex-row items-center justify-center gap-2 mt-3"
+        className="bg-success rounded-control py-4 flex-row items-center justify-center gap-2 mt-3"
       >
         <Icon icon={Square} size={18} color="on-accent" />
-        <Text className="text-on-accent font-bold text-base">End Workout</Text>
+        <Text className="text-on-accent font-bold text-base">Complete Workout</Text>
       </Pressable>
 
       <SignOutButton />

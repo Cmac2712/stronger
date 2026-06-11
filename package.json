@@ -14,7 +14,7 @@
     "e2e:smoke": "maestro test --include-tags no-backend .maestro",
     "e2e:seed": "node scripts/e2e-seed-user.mjs",
     "db:push": "supabase db push",
-    "//sandcastle": "npx tsx .sandcastle/main.mts"
+    "sandcastle": "npx tsx .sandcastle/main.mts"
   },
   "dependencies": {
     "@expo/html-elements": "^0.10.1",
