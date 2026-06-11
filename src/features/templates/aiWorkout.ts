@@ -48,6 +48,11 @@ export type AiWorkoutDeps = {
 // user isn't staring at a spinner past the point of giving up.
 export const AI_WORKOUT_TIMEOUT_MS = 20_000;
 
+// One message for every generation failure — the launch screen also uses it
+// as the fallback for unexpected (non-AiWorkoutError) failures.
+export const GENERATION_FAILED_MESSAGE =
+  "Couldn't generate a workout. Please try again.";
+
 // require() at call time (the workoutStore pattern): the Supabase client and
 // store load only when the real deps are actually used, never via a mere
 // import in jest — tests always inject their own deps.
@@ -136,18 +141,12 @@ export async function requestAiWorkout(
     );
   } catch (error) {
     if (error instanceof AiWorkoutError) throw error;
-    throw new AiWorkoutError(
-      "generation",
-      "Couldn't generate a workout. Please try again."
-    );
+    throw new AiWorkoutError("generation", GENERATION_FAILED_MESSAGE);
   }
 
   const exerciseIds = result.error ? null : parseExerciseIds(result.data);
   if (exerciseIds === null) {
-    throw new AiWorkoutError(
-      "generation",
-      "Couldn't generate a workout. Please try again."
-    );
+    throw new AiWorkoutError("generation", GENERATION_FAILED_MESSAGE);
   }
   return exerciseIds;
 }

@@ -10,7 +10,11 @@ import { Icon } from "@shared/ui/Icon";
 import * as syncEngine from "@sync/syncEngine";
 import * as connectivity from "@sync/connectivity";
 import { AiSplitPicker } from "@features/templates/AiSplitPicker";
-import { startAiWorkout, AiWorkoutError } from "@features/templates/aiWorkout";
+import {
+  startAiWorkout,
+  AiWorkoutError,
+  GENERATION_FAILED_MESSAGE,
+} from "@features/templates/aiWorkout";
 import type { Split } from "@features/templates/templateLibrary";
 import type { WorkoutStackParamList } from "../../app/RootNavigator";
 
@@ -126,6 +130,7 @@ function IdleView() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const aiDisabled = !online || generating;
 
   const onStart = () => {
     // A freshly started session is empty; the user picks exercises via the
@@ -146,7 +151,7 @@ function IdleView() {
       setAiError(
         error instanceof AiWorkoutError
           ? error.message
-          : "Couldn't generate a workout. Please try again."
+          : GENERATION_FAILED_MESSAGE
       );
     } finally {
       setGenerating(false);
@@ -165,13 +170,13 @@ function IdleView() {
 
       <Pressable
         testID="ai-workout"
-        disabled={!online || generating}
+        disabled={aiDisabled}
         onPress={() => {
           setAiError(null);
           setPickerVisible(true);
         }}
         className={`bg-card border border-subtle rounded-surface py-6 mt-3 flex-row items-center justify-center gap-2 ${
-          !online || generating ? "opacity-50" : ""
+          aiDisabled ? "opacity-50" : ""
         }`}
       >
         <Icon icon={Sparkles} size={20} color="primary" />
