@@ -1,0 +1,26 @@
+# AI workout generation via a Supabase Edge Function with schema-constrained output
+
+The AI workout feature (PRD #39) needs a Claude call that turns `{ split, summary }` into a list of exercises, without shipping an Anthropic API key in the app binary. We run the call in a stateless Supabase Edge Function, `supabase/functions/generate-workout` (Deno + `@anthropic-ai/sdk`): the authenticated client sends its split choice and a compact history summary (built client-side by `historySummary`); the function verifies the Supabase JWT, calls `claude-haiku-4-5`, and returns `{ exerciseIds }`. `ANTHROPIC_API_KEY` lives in a Supabase secret, server-side only.
+
+Two mechanisms carry the design:
+
+- **Schema-constrained structured output.** `buildWorkoutRequest` builds the whole Claude request — system prompt, user message, and an `output_config.format` JSON schema whose `exerciseIds` enum is derived from `exerciseLibrary.getAll()` at call time. The model is *unable* to emit an id outside the library, so FK integrity holds at generation time with no runtime validation layer, and adding a library exercise automatically widens what the AI may pick (US #24/#37). A jest drift-guard test asserts the enum tracks the library.
+- **One request builder shared by app and function.** `buildWorkoutRequest` is pure and lives in `src/features/templates/`. The Deno function imports it directly, so client expectations and server behavior cannot drift. The wrinkle is module resolution: Deno requires relative specifiers with explicit file extensions, while the app uses Metro/Jest/tsc with path aliases. Resolution: every import reachable from the Deno entrypoint (`buildWorkoutRequest.ts` → `exerciseLibrary.ts`) uses relative paths with explicit `.ts` extensions. Metro and Jest resolve literal paths natively; tsc accepts them via `allowImportingTsExtensions` (paired with `noEmit`, which was already the effective mode). App-only modules keep using aliases.
+
+The function itself splits into a jest-testable core and a thin Deno adapter: `handler.ts` is plain data-in/data-out (`{ authHeader, body }` + injected `{ getUser, createMessage }` → `{ status, body }`) with no Deno globals or SDK imports, fully covered against a mocked Anthropic client; `index.ts` adapts it to `Deno.serve`, wires the real Supabase auth check and Anthropic client, and is excluded from the app `tsconfig` (its `npm:` specifiers and `Deno` global don't resolve under tsc) — it is checked by `deno check` at deploy time instead.
+
+## Considered options
+
+- **Call Anthropic directly from the app.** Simplest, but the API key would ship in the binary and be extractable from any device (US #36). Rejected.
+- **Server-side history fetch.** The function could read the user's sessions from Postgres instead of trusting a client-sent summary. Keeps the payload tiny but makes the function stateful, couples it to the sync schema, and the summary is preference data, not a security boundary. Rejected for v1 — client sends `historySummary` output; revisit if the payload grows.
+- **Prompt-only id discipline (no schema enum).** Ask the model nicely to use library ids and validate the response server- or client-side. Needs the validation layer the enum makes unnecessary, and invalid picks surface as user-facing failures instead of being impossible. Rejected.
+- **Duplicate `buildWorkoutRequest` in the function folder.** Avoids the cross-runtime import entirely but guarantees drift between what tests assert app-side and what the function sends. Rejected.
+- **Per-function import map for `@features/*`.** Keeps alias-style imports in shared code, but Deno import maps need extension-bearing targets per module in practice and add deploy-time config that Metro/Jest never read. The `.ts`-extension rule is one convention enforced where it matters (file-header comments on the shared graph). Rejected.
+- **Sonnet-tier model.** Picking 4–6 ids from an enum of ~46 is a constrained selection task; Haiku is the fastest and cheapest fit (US #35), and the schema bounds the damage of a weaker pick. `claude-haiku-4-5`.
+
+## Consequences
+
+- The Deno-reachable module graph must stay alias-free and extension-explicit. Today that is exactly `buildWorkoutRequest.ts` and `exerciseLibrary.ts`; both carry a header comment stating the constraint.
+- `Split`/`SPLITS` are defined in `buildWorkoutRequest.ts` because the edge function validates splits in Deno. When `templateLibrary` (slice 1, #40) lands it should re-export them rather than redefine.
+- `supabase/functions/*/index.ts` is excluded from `tsc --noEmit`; the deploy pipeline (`deno check` / `supabase functions deploy`, slice 6 #45) is the type gate for the Deno adapter. Keep `index.ts` thin so the untyped surface stays trivial.
+- Error contract consumed by the client (slice 7): `401` bad/missing JWT, `400` malformed body or unknown split, `502` model failure or malformed model output, `200` `{ exerciseIds }` guaranteed to be library ids.

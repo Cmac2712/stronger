@@ -4,6 +4,8 @@
     "strict": true,
     "jsx": "react-jsx",
     "moduleResolution": "bundler",
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
     "types": [
       "jest",
       "node"
@@ -37,6 +39,7 @@
   ],
   "exclude": [
     "node_modules",
-    ".sandcastle"
+    ".sandcastle",
+    "supabase/functions/*/index.ts"
   ]
 }
