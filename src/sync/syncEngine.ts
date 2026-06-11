@@ -599,7 +599,7 @@ export async function loadState(): Promise<PersistedState> {
 export async function signIn(
   email: string,
   password: string,
-  seedState?: { restDurationMs: number; sessions: Session[]; templates?: Template[] }
+  seedState?: { restDurationMs: number; sessions: Session[]; templates: Template[] }
 ): Promise<{
   error: { message: string } | null;
   userSettings: UserSettingsRow | null;
@@ -639,7 +639,8 @@ export async function signIn(
     });
   }
 
-  // Seed sessions, exercises, and sets from local state on first sign-in.
+  // Seed sessions, exercises, sets, and templates from local state on first
+  // sign-in.
   if (seedState !== undefined) {
     const existingSessions = await localMirror.loadRawSessions();
     if (existingSessions.length === 0 && seedState.sessions.length > 0) {
@@ -678,10 +679,7 @@ export async function signIn(
         }
       }
     }
-  }
 
-  // Seed user templates from local state on first sign-in, same as sessions.
-  if (seedState?.templates !== undefined) {
     const existingTemplates = await localMirror.loadRawTemplates();
     if (existingTemplates.length === 0 && seedState.templates.length > 0) {
       const now = new Date().toISOString();
