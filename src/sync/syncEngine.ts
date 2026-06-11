@@ -5,8 +5,8 @@ import { createMutationQueue } from "./mutationQueue";
 import * as localMirror from "./localMirror";
 import { setSyncPaused } from "./syncStatus";
 import { genId } from "@shared/lib/id";
-import { UserSettingsRow, SessionRow, SessionExerciseRow, SetRow, Mutation, SyncableRow } from "./types";
-import type { PersistedState, Session, SessionExercise } from "@shared/types";
+import { UserSettingsRow, SessionRow, SessionExerciseRow, SetRow, TemplateRow, Mutation, SyncableRow } from "./types";
+import type { PersistedState, Session, SessionExercise, Template } from "@shared/types";
 import { DEFAULT_REST_DURATION_MS } from "@shared/types";
 
 const queue = createMutationQueue({
@@ -87,6 +87,22 @@ function buildSetMutation(userId: string, row: SetRow): Mutation {
       set_number: row.set_number,
       reps: row.reps,
       weight: row.weight,
+      updated_at: row.updated_at,
+      deleted_at: row.deleted_at,
+    },
+    enqueuedAt: new Date().toISOString(),
+  };
+}
+
+function buildTemplateMutation(userId: string, row: TemplateRow): Mutation {
+  return {
+    id: genId(),
+    table: "templates",
+    row: {
+      id: row.id,
+      user_id: userId,
+      name: row.name,
+      exercise_ids: row.exercise_ids,
       updated_at: row.updated_at,
       deleted_at: row.deleted_at,
     },
@@ -310,6 +326,69 @@ export async function tombstoneSet(setId: string): Promise<void> {
   void queue.drain(handleMutation);
 }
 
+// The two halves of the row↔Template mapping (analogue of rowsToSessions).
+// user_id/updated_at/deleted_at are sync bookkeeping the in-memory Template
+// never carries; they are stamped on the way out and dropped on the way in.
+export function templateToRow(
+  template: Template,
+  userId: string,
+  updatedAt: string,
+  deletedAt: string | null = null
+): TemplateRow {
+  return {
+    id: template.id,
+    user_id: userId,
+    name: template.name,
+    exercise_ids: template.exerciseIds,
+    updated_at: updatedAt,
+    deleted_at: deletedAt,
+  };
+}
+
+export function rowsToTemplates(rows: TemplateRow[]): Template[] {
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    exerciseIds: r.exercise_ids,
+  }));
+}
+
+export async function upsertTemplate(template: Template): Promise<void> {
+  if (!supabase) return;
+
+  const userId = await currentUserId();
+  if (!userId) return;
+
+  const row = templateToRow(template, userId, new Date().toISOString());
+
+  await localMirror.writeTemplate(row);
+  await queue.enqueue(buildTemplateMutation(userId, row));
+  void queue.drain(handleMutation);
+}
+
+export async function tombstoneTemplate(templateId: string): Promise<void> {
+  if (!supabase) return;
+
+  const userId = await currentUserId();
+  if (!userId) return;
+
+  const now = new Date().toISOString();
+  const rows = await localMirror.loadRawTemplates();
+  const existing = rows.find((r) => r.id === templateId);
+  const row: TemplateRow = {
+    id: templateId,
+    user_id: userId,
+    name: existing?.name ?? "",
+    exercise_ids: existing?.exercise_ids ?? [],
+    updated_at: now,
+    deleted_at: now,
+  };
+
+  await localMirror.writeTemplate(row);
+  await queue.enqueue(buildTemplateMutation(userId, row));
+  void queue.drain(handleMutation);
+}
+
 export async function loadUserSettings(): Promise<UserSettingsRow | null> {
   return localMirror.loadUserSettings();
 }
@@ -319,9 +398,10 @@ export async function pull(): Promise<{
   sessions: SessionRow[];
   sessionExercises: SessionExerciseRow[];
   sets: SetRow[];
+  templates: TemplateRow[];
 }> {
   console.log('supabase: ', supabase)
-  if (!supabase) return { userSettings: null, sessions: [], sessionExercises: [], sets: [] };
+  if (!supabase) return { userSettings: null, sessions: [], sessionExercises: [], sets: [], templates: [] };
 
   const lastPulledAt = await localMirror.loadLastPulledAt();
 
@@ -331,11 +411,12 @@ export async function pull(): Promise<{
     return q;
   };
 
-  const [settingsResult, sessionsResult, sessionExercisesResult, setsResult] = await Promise.all([
+  const [settingsResult, sessionsResult, sessionExercisesResult, setsResult, templatesResult] = await Promise.all([
     sinceCursor("user_settings"),
     sinceCursor("sessions"),
     sinceCursor("session_exercises"),
     sinceCursor("sets"),
+    sinceCursor("templates"),
   ]);
 
   console.log('sessionResult: ', sessionsResult)
@@ -417,6 +498,23 @@ export async function pull(): Promise<{
     )
   );
 
+  advanceMax(
+    await reconcileFetched<TemplateRow>(
+      templatesResult,
+      (r) => ({
+        id: r.id as string,
+        user_id: r.user_id as string,
+        name: r.name as string,
+        exercise_ids: (r.exercise_ids as string[]) ?? [],
+        updated_at: r.updated_at as string,
+        deleted_at: (r.deleted_at as string | null) ?? null,
+      }),
+      localMirror.loadRawTemplates,
+      localMirror.writeTemplate,
+      buildTemplateMutation
+    )
+  );
+
   if (maxUpdatedAt && maxUpdatedAt !== lastPulledAt) {
     await localMirror.saveLastPulledAt(maxUpdatedAt);
   }
@@ -427,7 +525,8 @@ export async function pull(): Promise<{
   const sessions = await localMirror.loadSessions();
   const sessionExercises = await localMirror.loadSessionExercises();
   const sets = await localMirror.loadSets();
-  return { userSettings, sessions, sessionExercises, sets };
+  const templates = await localMirror.loadTemplates();
+  return { userSettings, sessions, sessionExercises, sets, templates };
 }
 
 // Stitch the three sync tables back into the nested in-memory Session shape.
@@ -483,6 +582,7 @@ export async function loadState(): Promise<PersistedState> {
   const sessionRows = await localMirror.loadSessions();
   const exerciseRows = await localMirror.loadSessionExercises();
   const setRows = await localMirror.loadSets();
+  const templateRows = await localMirror.loadTemplates();
 
   const sessions = rowsToSessions(sessionRows, exerciseRows, setRows);
   const active = sessions.find((s) => s.endedAt === null) ?? null;
@@ -491,6 +591,7 @@ export async function loadState(): Promise<PersistedState> {
   return {
     activeSession: active,
     history,
+    templates: rowsToTemplates(templateRows),
     restDurationMs: userSettings?.rest_duration_ms ?? DEFAULT_REST_DURATION_MS,
   };
 }
@@ -498,13 +599,14 @@ export async function loadState(): Promise<PersistedState> {
 export async function signIn(
   email: string,
   password: string,
-  seedState?: { restDurationMs: number; sessions: Session[] }
+  seedState?: { restDurationMs: number; sessions: Session[]; templates?: Template[] }
 ): Promise<{
   error: { message: string } | null;
   userSettings: UserSettingsRow | null;
   sessions: SessionRow[];
   sessionExercises: SessionExerciseRow[];
   sets: SetRow[];
+  templates: TemplateRow[];
 }> {
   if (!supabase) {
     return {
@@ -513,6 +615,7 @@ export async function signIn(
       sessions: [],
       sessionExercises: [],
       sets: [],
+      templates: [],
     };
   }
 
@@ -521,7 +624,7 @@ export async function signIn(
     password,
   });
   if (error)
-    return { error: { message: error.message }, userSettings: null, sessions: [], sessionExercises: [], sets: [] };
+    return { error: { message: error.message }, userSettings: null, sessions: [], sessionExercises: [], sets: [], templates: [] };
 
   const userId = data.user.id;
 
@@ -577,6 +680,17 @@ export async function signIn(
     }
   }
 
+  // Seed user templates from local state on first sign-in, same as sessions.
+  if (seedState?.templates !== undefined) {
+    const existingTemplates = await localMirror.loadRawTemplates();
+    if (existingTemplates.length === 0 && seedState.templates.length > 0) {
+      const now = new Date().toISOString();
+      for (const t of seedState.templates) {
+        await localMirror.writeTemplate(templateToRow(t, userId, now));
+      }
+    }
+  }
+
   if (queue.isPaused()) {
     queue.resume();
     setSyncPaused(false);
@@ -589,6 +703,7 @@ export async function signIn(
     sessions: pulled.sessions,
     sessionExercises: pulled.sessionExercises,
     sets: pulled.sets,
+    templates: pulled.templates,
   };
 }
 

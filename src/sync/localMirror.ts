@@ -1,10 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { UserSettingsRow, SessionRow, SessionExerciseRow, SetRow } from "./types";
+import { UserSettingsRow, SessionRow, SessionExerciseRow, SetRow, TemplateRow } from "./types";
 
 const USER_SETTINGS_KEY = "workout/mirror/user_settings/v1";
 const SESSIONS_KEY = "workout/mirror/sessions/v1";
 const SESSION_EXERCISES_KEY = "workout/mirror/session_exercises/v1";
 const SETS_KEY = "workout/mirror/sets/v1";
+const TEMPLATES_KEY = "workout/mirror/templates/v1";
 const LAST_PULLED_AT_KEY = "workout/sync/last_pulled_at/v1";
 
 export async function loadRawUserSettings(): Promise<UserSettingsRow | null> {
@@ -82,6 +83,27 @@ export async function writeSet(row: SetRow): Promise<void> {
     rows.push(row);
   }
   await AsyncStorage.setItem(SETS_KEY, JSON.stringify(rows));
+}
+
+export async function loadRawTemplates(): Promise<TemplateRow[]> {
+  const raw = await AsyncStorage.getItem(TEMPLATES_KEY);
+  return raw ? JSON.parse(raw) : [];
+}
+
+export async function loadTemplates(): Promise<TemplateRow[]> {
+  const rows = await loadRawTemplates();
+  return rows.filter((r) => r.deleted_at === null);
+}
+
+export async function writeTemplate(row: TemplateRow): Promise<void> {
+  const rows = await loadRawTemplates();
+  const idx = rows.findIndex((r) => r.id === row.id);
+  if (idx >= 0) {
+    rows[idx] = row;
+  } else {
+    rows.push(row);
+  }
+  await AsyncStorage.setItem(TEMPLATES_KEY, JSON.stringify(rows));
 }
 
 export async function loadLastPulledAt(): Promise<string | null> {

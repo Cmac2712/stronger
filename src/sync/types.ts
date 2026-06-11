@@ -29,6 +29,14 @@ export type SetRow = SyncableRow & {
   weight: number;
 };
 
+// Whole-row LWW is the conflict unit (ADR-0006): templates are replaced or
+// deleted wholesale, so exercise_ids rides along as an ordered array column.
+export type TemplateRow = SyncableRow & {
+  user_id: string;
+  name: string;
+  exercise_ids: string[];
+};
+
 export type Mutation = {
   id: string;
   table: string;

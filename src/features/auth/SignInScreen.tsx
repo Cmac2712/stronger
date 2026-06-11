@@ -30,7 +30,11 @@ export function SignInScreen({ onNavigateSignUp }: Props) {
     const { error: signInError, userSettings } = await syncEngine.signIn(
       email,
       password,
-      { restDurationMs: store.restDurationMs, sessions: allSessions }
+      {
+        restDurationMs: store.restDurationMs,
+        sessions: allSessions,
+        templates: store.templates,
+      }
     );
     if (signInError) {
       setError(signInError.message);

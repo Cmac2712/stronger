@@ -1,5 +1,5 @@
 import { reconcile } from "./reconciler";
-import { SyncableRow, SessionRow, SetRow } from "./types";
+import { SyncableRow, SessionRow, SetRow, TemplateRow } from "./types";
 
 type TestRow = SyncableRow & { value: number };
 
@@ -238,6 +238,76 @@ describe("reconciler — sessions integration", () => {
 
     expect(result.writes).toEqual(remote);
     expect(result.enqueues).toEqual([]);
+  });
+});
+
+describe("reconciler — templates integration", () => {
+  function templateRow(
+    id: string,
+    updated_at: string,
+    name: string,
+    exercise_ids: string[],
+    deleted_at: string | null = null
+  ): TemplateRow {
+    return { id, user_id: "u1", updated_at, deleted_at, name, exercise_ids };
+  }
+
+  it("seeds local templates to remote when remote is empty", () => {
+    const local = [
+      templateRow("t1", "2026-06-11T00:00:00.000Z", "Push", ["barbell-bench-press"]),
+    ];
+    const result = reconcile(local, []);
+
+    expect(result.writes).toEqual([]);
+    expect(result.enqueues).toEqual(local);
+  });
+
+  it("hydrates remote templates into empty local", () => {
+    const remote = [
+      templateRow("t1", "2026-06-11T00:00:00.000Z", "Pull", ["deadlift", "barbell-row"]),
+    ];
+    const result = reconcile([], remote);
+
+    expect(result.writes).toEqual(remote);
+    expect(result.enqueues).toEqual([]);
+  });
+
+  it("later updated_at wins whole-row: the newer replacement carries its exercise list wholesale", () => {
+    const local = [
+      templateRow("t1", "2026-06-11T00:00:00.000Z", "Push", ["barbell-bench-press"]),
+    ];
+    const remote = [
+      templateRow("t1", "2026-06-11T01:00:00.000Z", "Push v2", ["overhead-press", "dip"]),
+    ];
+
+    const result = reconcile(local, remote);
+
+    expect(result.writes).toEqual(remote);
+    expect(result.enqueues).toEqual([]);
+  });
+
+  it("tombstone newer than edit: remote delete overwrites the local template", () => {
+    const local = [templateRow("t1", "2026-06-11T00:00:00.000Z", "Push", ["dip"])];
+    const remote = [
+      templateRow("t1", "2026-06-11T01:00:00.000Z", "Push", ["dip"], "2026-06-11T01:00:00.000Z"),
+    ];
+
+    const result = reconcile(local, remote);
+
+    expect(result.writes).toEqual(remote);
+    expect(result.enqueues).toEqual([]);
+  });
+
+  it("local tombstone newer than remote edit: the delete is enqueued for upload", () => {
+    const local = [
+      templateRow("t1", "2026-06-11T02:00:00.000Z", "Push", ["dip"], "2026-06-11T02:00:00.000Z"),
+    ];
+    const remote = [templateRow("t1", "2026-06-11T01:00:00.000Z", "Push", ["dip"])];
+
+    const result = reconcile(local, remote);
+
+    expect(result.writes).toEqual([]);
+    expect(result.enqueues).toEqual(local);
   });
 });
 

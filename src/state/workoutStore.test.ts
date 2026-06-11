@@ -32,6 +32,7 @@ function hydrated(history: Session[]): StoreApi<WorkoutStore> {
   const state: PersistedState = {
     activeSession: null,
     history,
+    templates: [],
     restDurationMs: 120_000,
   };
   store.getState().hydrate(state);
@@ -280,6 +281,7 @@ describe("workoutStore", () => {
       store.getState().hydrate({
         activeSession: null,
         history: [session(1000, "bench-press", [{ setNumber: 1, reps: 8, weight: 80 }])],
+        templates: [],
         restDurationMs: 120_000,
       });
 
@@ -300,6 +302,7 @@ describe("workoutStore", () => {
       store.getState().hydrate({
         activeSession: null,
         history: [session(1000, "bench-press", [{ setNumber: 1, reps: 8, weight: 80 }])],
+        templates: [],
         restDurationMs: 120_000,
       });
       const before = saved.length;
@@ -1144,6 +1147,7 @@ describe("workoutStore", () => {
       store.getState().hydrate({
         activeSession: null,
         history: [],
+        templates: [],
         restDurationMs: 75_000,
       });
       expect(store.getState().restDurationMs).toBe(75_000);
@@ -1217,6 +1221,72 @@ describe("workoutStore", () => {
     });
   });
 
+  describe("saveTemplate", () => {
+    it("adds the template to persisted state with a generated id", () => {
+      const saved: PersistedState[] = [];
+      const store = createWorkoutStore((s) => saved.push(s), noop, noop, noop, noop, noop, noop, noop);
+
+      const template = store.getState().saveTemplate({
+        name: "Chest & Back",
+        exerciseIds: ["barbell-bench-press", "deadlift"],
+      });
+
+      expect(store.getState().templates).toEqual([template]);
+      expect(typeof template.id).toBe("string");
+      expect(template.id.length).toBeGreaterThan(0);
+      expect(template).toMatchObject({
+        name: "Chest & Back",
+        exerciseIds: ["barbell-bench-press", "deadlift"],
+      });
+      // persisted snapshot carries the new template
+      expect(saved[saved.length - 1].templates).toEqual([template]);
+    });
+
+    it("emits the upsert sync callback with the full template", () => {
+      const upserts: Array<{ id: string; name: string; exerciseIds: string[] }> = [];
+      const store = createWorkoutStore(
+        noop, noop, noop, noop, noop, noop, noop, noop,
+        (t) => upserts.push(t)
+      );
+
+      const template = store.getState().saveTemplate({
+        name: "Legs",
+        exerciseIds: ["barbell-back-squat"],
+      });
+
+      expect(upserts).toEqual([template]);
+    });
+
+    it("appends to existing templates without disturbing them", () => {
+      const store = freshStore();
+      const first = store.getState().saveTemplate({ name: "A", exerciseIds: ["deadlift"] });
+      const second = store.getState().saveTemplate({ name: "B", exerciseIds: ["leg-press"] });
+
+      expect(store.getState().templates).toEqual([first, second]);
+      expect(first.id).not.toBe(second.id);
+    });
+  });
+
+  describe("deleteTemplate", () => {
+    it("removes the template from persisted state and emits the tombstone callback", () => {
+      const deleted: string[] = [];
+      const saved: PersistedState[] = [];
+      const store = createWorkoutStore(
+        (s) => saved.push(s), noop, noop, noop, noop, noop, noop, noop,
+        noop,
+        (id) => deleted.push(id)
+      );
+      const keep = store.getState().saveTemplate({ name: "Keep", exerciseIds: ["deadlift"] });
+      const drop = store.getState().saveTemplate({ name: "Drop", exerciseIds: ["leg-press"] });
+
+      store.getState().deleteTemplate(drop.id);
+
+      expect(store.getState().templates).toEqual([keep]);
+      expect(deleted).toEqual([drop.id]);
+      expect(saved[saved.length - 1].templates).toEqual([keep]);
+    });
+  });
+
   describe("getTemplates", () => {
     it("returns the builtin templates tagged with a builtin source marker", () => {
       const store = freshStore();
@@ -1233,6 +1303,64 @@ describe("workoutStore", () => {
         expect(typeof t.name).toBe("string");
         expect(t.exerciseIds.length).toBeGreaterThan(0);
       }
+    });
+
+    it("merges builtin and user templates with correct source markers", () => {
+      const store = freshStore();
+      const mine = store.getState().saveTemplate({
+        name: "My Pull",
+        exerciseIds: ["deadlift", "barbell-row"],
+      });
+
+      const templates = store.getState().getTemplates();
+
+      expect(templates.map((t) => [t.id, t.source])).toEqual([
+        ["builtin-push", "builtin"],
+        ["builtin-pull", "builtin"],
+        ["builtin-legs", "builtin"],
+        [mine.id, "user"],
+      ]);
+      expect(templates[templates.length - 1]).toMatchObject({
+        name: "My Pull",
+        exerciseIds: ["deadlift", "barbell-row"],
+      });
+    });
+
+    it("skips exercise ids that no longer resolve in the library", () => {
+      const store = freshStore();
+      const mine = store.getState().saveTemplate({
+        name: "Stale",
+        exerciseIds: ["deadlift", "retired-exercise", "leg-press"],
+      });
+
+      const read = store.getState().getTemplates().find((t) => t.id === mine.id)!;
+
+      expect(read.exerciseIds).toEqual(["deadlift", "leg-press"]);
+      // the persisted template keeps the raw ids — only the read view skips
+      expect(store.getState().templates[0].exerciseIds).toEqual([
+        "deadlift",
+        "retired-exercise",
+        "leg-press",
+      ]);
+    });
+
+    it("survives a hydrated template whose ids are all unresolved", () => {
+      const store = freshStore();
+      store.getState().hydrate({
+        activeSession: null,
+        history: [],
+        templates: [{ id: "t-old", name: "Old", exerciseIds: ["gone-1", "gone-2"] }],
+        restDurationMs: 120_000,
+      });
+
+      const read = store.getState().getTemplates().find((t) => t.id === "t-old")!;
+
+      expect(read).toEqual({
+        id: "t-old",
+        name: "Old",
+        exerciseIds: [],
+        source: "user",
+      });
     });
   });
 });

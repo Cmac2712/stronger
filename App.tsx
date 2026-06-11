@@ -102,6 +102,11 @@ export default function App() {
               workoutStore.getState().activeSession;
             workoutStore.setState({ history, activeSession });
           }
+          if (pulled.templates.length > 0) {
+            workoutStore.setState({
+              templates: syncEngine.rowsToTemplates(pulled.templates),
+            });
+          }
         });
       }
     });

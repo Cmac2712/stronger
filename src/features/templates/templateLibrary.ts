@@ -3,11 +3,10 @@
 // without a schema change. exerciseIds reference exerciseLibrary ids —
 // FK integrity is guarded by templateLibrary.test.ts.
 
-export type Template = {
-  id: string;
-  name: string;
-  exerciseIds: string[]; // ordered FKs into exerciseLibrary
-};
+// The Template type lives in @shared/types now that PersistedState carries
+// user templates; re-exported here so template-feature code has one import.
+export type { Template } from "@shared/types";
+import type { Template } from "@shared/types";
 
 // The fixed set of training splits, for AI workout generation (later slice).
 export const SPLITS = [

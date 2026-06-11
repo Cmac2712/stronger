@@ -6,6 +6,7 @@ import {
   Session,
   SessionExercise,
   Set,
+  Template,
 } from "@shared/types";
 import { genId } from "@shared/lib/id";
 import { normalizeWeight } from "@shared/lib/parseNumericInput";
@@ -16,11 +17,12 @@ import {
   resumeRest,
   resetRest,
 } from "@shared/lib/restTimer";
-// Data-only module (no imports of its own), so this state -> features edge
-// creates no cycle. Builtin templates merge into getTemplates() at read time;
-// user templates join them in a later slice.
+// Data-only modules (type-only/zero runtime imports of their own), so these
+// state -> features edges create no cycle. Builtin templates merge with the
+// persisted user templates in getTemplates() at read time; exerciseLibrary
+// vets template exerciseIds so an id that left the library reads gracefully.
 import * as templateLibrary from "@features/templates/templateLibrary";
-import type { Template } from "@features/templates/templateLibrary";
+import * as exerciseLibrary from "@features/exercises/exerciseLibrary";
 
 type Persist = (state: PersistedState) => void;
 type OnRestDurationChange = (durationMs: number) => void;
@@ -37,6 +39,8 @@ type OnSessionExerciseRemove = (sessionExerciseId: string) => void;
 type OnSetLog = (set: { id: string; sessionExerciseId: string; setNumber: number; reps: number; weight: number }) => void;
 type OnSetUpdate = (set: { id: string; sessionExerciseId: string; setNumber: number; reps: number; weight: number }) => void;
 type OnSetDelete = (setId: string) => void;
+type OnTemplateSave = (template: Template) => void;
+type OnTemplateDelete = (templateId: string) => void;
 
 // One row of the history list (not to be confused with the workout-complete
 // SessionSummary in @features/sessions/sessionSummary).
@@ -88,6 +92,8 @@ export type WorkoutActions = {
   endSession: () => void;
   addExerciseToSession: (exerciseId: string) => void;
   applyTemplate: (exerciseIds: string[]) => void;
+  saveTemplate: (input: { name: string; exerciseIds: string[] }) => Template;
+  deleteTemplate: (templateId: string) => void;
   getTemplates: () => TemplateWithSource[];
   removeExerciseFromSession: (sessionExerciseId: string) => void;
   logSet: (sessionExerciseId: string, reps: number, weight: number) => void;
@@ -112,6 +118,7 @@ export type WorkoutStore = WorkoutState & { restTimer: RestTimer } & WorkoutActi
 export const initialState: WorkoutState = {
   activeSession: null,
   history: [],
+  templates: [],
   restDurationMs: DEFAULT_REST_DURATION_MS,
 };
 
@@ -152,6 +159,7 @@ function snapshot(state: WorkoutState): PersistedState {
   return {
     activeSession: state.activeSession,
     history: state.history,
+    templates: state.templates,
     restDurationMs: state.restDurationMs,
   };
 }
@@ -193,6 +201,14 @@ const defaultOnSetDelete: OnSetDelete = (id) => {
   void loadSyncEngine().tombstoneSet(id).catch(() => {});
 };
 
+const defaultOnTemplateSave: OnTemplateSave = (t) => {
+  void loadSyncEngine().upsertTemplate(t).catch(() => {});
+};
+
+const defaultOnTemplateDelete: OnTemplateDelete = (id) => {
+  void loadSyncEngine().tombstoneTemplate(id).catch(() => {});
+};
+
 export function createWorkoutStore(
   persist: Persist = defaultPersist,
   onRestDurationChange: OnRestDurationChange = defaultOnRestDurationChange,
@@ -201,7 +217,9 @@ export function createWorkoutStore(
   onSessionExerciseRemove: OnSessionExerciseRemove = defaultOnSessionExerciseRemove,
   onSetLog: OnSetLog = defaultOnSetLog,
   onSetUpdate: OnSetUpdate = defaultOnSetUpdate,
-  onSetDelete: OnSetDelete = defaultOnSetDelete
+  onSetDelete: OnSetDelete = defaultOnSetDelete,
+  onTemplateSave: OnTemplateSave = defaultOnTemplateSave,
+  onTemplateDelete: OnTemplateDelete = defaultOnTemplateDelete
 ) {
   return createStore<WorkoutStore>((set, get) => {
     // Apply a state update then persist the resulting snapshot.
@@ -286,10 +304,40 @@ export function createWorkoutStore(
         }
       },
 
-      getTemplates: () =>
-        templateLibrary
-          .getAll()
-          .map((t) => ({ ...t, source: "builtin" as const })),
+      saveTemplate: ({ name, exerciseIds }) => {
+        const template: Template = { id: genId(), name, exerciseIds };
+        commit({ ...get(), templates: [...get().templates, template] });
+        onTemplateSave(template);
+        return template;
+      },
+
+      deleteTemplate: (templateId) => {
+        commit({
+          ...get(),
+          templates: get().templates.filter((t) => t.id !== templateId),
+        });
+        onTemplateDelete(templateId);
+      },
+
+      getTemplates: () => {
+        // Drop exercise ids that no longer resolve in the library — a stale
+        // template must read (and apply) gracefully, like session exercises.
+        const resolvable = (t: Template): Template => ({
+          ...t,
+          exerciseIds: t.exerciseIds.filter(
+            (id) => exerciseLibrary.getById(id) !== undefined
+          ),
+        });
+        return [
+          ...templateLibrary
+            .getAll()
+            .map((t) => ({ ...resolvable(t), source: "builtin" as const })),
+          ...get().templates.map((t) => ({
+            ...resolvable(t),
+            source: "user" as const,
+          })),
+        ];
+      },
 
       removeExerciseFromSession: (sessionExerciseId) => {
         const active = get().activeSession;
