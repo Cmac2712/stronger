@@ -1,0 +1,19 @@
+# Reusable: clean launch, then sign in as the seeded test user and wait for
+# the main app. First step of any flow exercising the app behind the auth
+# gate. Requires TEST_EMAIL / TEST_PASSWORD (see README).
+appId: com.workout.app
+---
+- runFlow: open-fresh.yaml
+- tapOn:
+    id: "email-input"
+- inputText: ${TEST_EMAIL}
+- tapOn:
+    id: "password-input"
+- inputText: ${TEST_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "signin-submit"
+- extendedWaitUntil:
+    visible:
+      id: "tab-workout"
+    timeout: 20000

@@ -38,7 +38,9 @@ type OnSetLog = (set: { id: string; sessionExerciseId: string; setNumber: number
 type OnSetUpdate = (set: { id: string; sessionExerciseId: string; setNumber: number; reps: number; weight: number }) => void;
 type OnSetDelete = (setId: string) => void;
 
-export type SessionSummary = {
+// One row of the history list (not to be confused with the workout-complete
+// SessionSummary in @features/sessions/sessionSummary).
+export type SessionListItem = {
   id: string;
   startedAt: number;
   endedAt: number | null;
@@ -93,7 +95,7 @@ export type WorkoutActions = {
   deleteSet: (setId: string) => void;
   getLastSetFor: (exerciseId: string) => { reps: number; weight: number } | null;
   getPrefillFor: (sessionExerciseId: string) => { reps: number; weight: number };
-  getSessionsList: () => SessionSummary[];
+  getSessionsList: () => SessionListItem[];
   getHistoryFor: (exerciseId: string) => ExerciseHistory;
   setRestDuration: (durationMs: number) => void;
   startRestTimer: (now?: number) => void;

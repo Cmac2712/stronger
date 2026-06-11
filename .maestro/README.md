@@ -13,7 +13,9 @@ Maestro launches a real binary, so you must install a dev/preview build first.
 | `auth/sign-in-wrong-password.yaml` | yes | wrong password → error surfaced |
 | `auth/sign-up-shows-verify.yaml` | yes | new email → "Check your email" screen |
 | `templates/builtin-apply.yaml` | yes | idle launch screen → tap builtin template → prefilled session |
+| `workout/complete-summary.yaml` | yes | non-empty workout → summary → Done → idle; empty skips |
 | `subflows/open-fresh.yaml` | — | shared: clean launch → wait for sign-in |
+| `subflows/signed-in.yaml` | yes | shared: clean launch → sign in → main app |
 
 The two `no-backend` flows are fully deterministic and the recommended smoke set.
 
@@ -54,9 +56,11 @@ npm run e2e -- -e TEST_EMAIL=e2e@example.com -e TEST_PASSWORD=test123456
 
 ## Adding more flows
 
-Reuse `subflows/open-fresh.yaml` as the first step. Prefer `id:` (testID) selectors
-over visible text. testIDs currently wired: `email-input`, `password-input`,
-`confirm-password-input`, `toggle-password-visibility` (sign-in), `signin-submit`,
-`signup-submit`, `goto-signup`, `goto-signin`, `auth-error`, `verify-email-screen`,
-`tab-workout`, `tab-history`, `start-workout`, `template-<id>` (e.g.
-`template-builtin-push`).
+Reuse `subflows/open-fresh.yaml` (auth screens) or `subflows/signed-in.yaml`
+(anything behind the auth gate) as the first step. Prefer `id:` (testID)
+selectors over visible text. testIDs currently wired: `email-input`,
+`password-input`, `confirm-password-input`, `toggle-password-visibility`
+(sign-in), `signin-submit`, `signup-submit`, `goto-signup`, `goto-signin`,
+`auth-error`, `verify-email-screen`, `tab-workout`, `tab-history`,
+`start-workout`, `end-workout`, `workout-complete-screen`,
+`workout-complete-done`, `template-<id>` (e.g. `template-builtin-push`).

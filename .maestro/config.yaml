@@ -8,3 +8,4 @@
 flows:
   - "auth/*.yaml"
   - "templates/*.yaml"
+  - "workout/*.yaml"

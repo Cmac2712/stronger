@@ -19,6 +19,18 @@ export function WorkoutScreen() {
     return <IdleView />;
   }
 
+  const onEndWorkout = () => {
+    // A session with logged sets earns a summary; an empty one ends straight
+    // back to idle. Decided before endSession() clears the active session.
+    const hasLoggedSets = activeSession.sessionExercises.some(
+      (se) => se.sets.length > 0
+    );
+    workoutStore.getState().endSession();
+    if (hasLoggedSets) {
+      navigation.navigate("WorkoutComplete", { sessionId: activeSession.id });
+    }
+  };
+
   return (
     <ScrollView
       className="flex-1 bg-page"
@@ -67,7 +79,8 @@ export function WorkoutScreen() {
       </Pressable>
 
       <Pressable
-        onPress={() => workoutStore.getState().endSession()}
+        testID="end-workout"
+        onPress={onEndWorkout}
         className="bg-danger rounded-control py-4 flex-row items-center justify-center gap-2 mt-3"
       >
         <Icon icon={Square} size={18} color="on-accent" />

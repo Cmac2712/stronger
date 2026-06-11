@@ -1,0 +1,45 @@
+# Workout-complete summary: a non-empty session ends on the summary screen
+# (duration, total sets, per-exercise breakdown) and Done returns to idle;
+# an empty session skips the summary entirely.
+appId: com.workout.app
+name: Workout · complete summary
+tags:
+  - workout
+  - backend
+---
+- runFlow: ../subflows/signed-in.yaml
+
+# Non-empty session: one logged set → summary appears.
+- tapOn:
+    id: "start-workout"
+- tapOn: "Add Exercise"
+- tapOn: "Barbell Bench Press"
+- tapOn: "Set 1 reps, tap to type"
+- inputText: "8"
+- hideKeyboard
+- tapOn: "Log set 1"
+- tapOn:
+    id: "end-workout"
+- extendedWaitUntil:
+    visible:
+      id: "workout-complete-screen"
+    timeout: 10000
+- assertVisible: "Duration"
+- assertVisible: "Total sets"
+- assertVisible: "Barbell Bench Press"
+- tapOn:
+    id: "workout-complete-done"
+- extendedWaitUntil:
+    visible:
+      id: "start-workout"
+    timeout: 10000
+
+# Empty session: no logged sets → straight back to idle, no summary.
+- tapOn:
+    id: "start-workout"
+- tapOn:
+    id: "end-workout"
+- assertNotVisible:
+    id: "workout-complete-screen"
+- assertVisible:
+    id: "start-workout"
